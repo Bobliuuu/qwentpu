@@ -14,8 +14,7 @@ def make_tokens(n_vec=8):
     W, X = C.rand_case(rng, True, n_vec)
     toks = C.load_trace(W); want = [C.NOP] * len(toks)
     for x in X:
-        toks += C.matvec_trace(x); want += [C.NOP] * C.KR
-        want += [C.tok_out(int(np.clip(max(0, (x @ W)[c]), 0, C.AMAX))) for c in range(C.NC)]
+        toks += C.matvec_trace(x); want += [C.NOP] * C.KS + C.expected_outs(x, W)
     return toks, want
 
 

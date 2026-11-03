@@ -88,7 +88,9 @@ def _build_merged(src, mute_qwen, sinks):
     sd[TEXT_OUT + "embed_tokens.weight"] = E; sd["lm_head.weight"] = head
     # final norm: chip dims invisible to the lm_head except the code (and tau)
     norm = sd["model.norm.weight"].float(); norm[d0:] = -1.0
-    for dd in (next(iter(e.t)) for e in d["code"]): norm[lay.dim(dd)] = CODE_GAIN
+    lay.code_dims = [lay.dim(next(iter(e.t))) for e in d["code"]]      # hidden-state dims that spell the next chip token
+    for dd in lay.code_dims: norm[dd] = CODE_GAIN
+    tc["qwentpu_code_dims"] = lay.code_dims        # lets the driver read the next token off the sign bits
     norm[tau] = TAU_GAIN
     check_bf16("final norm", norm[d0:]); sd["model.norm.weight"] = norm.to(torch.bfloat16)
     if mute_qwen:
@@ -97,7 +99,17 @@ def _build_merged(src, mute_qwen, sinks):
     return tc, sd, v0, lay, g
 
 
+def exact_matmul():
+    """cuBLAS may split a bf16 GEMM's K dimension and combine the partials *in bf16* (shape- and GPU-dependent:
+    seen on an L4 for traces of 288 and 320 tokens, never on an A100).  That breaks the integer-exact arithmetic
+    this circuit relies on, so every model built here turns it off."""
+    import torch
+    torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = False
+    torch.backends.cuda.matmul.allow_fp16_reduced_precision_reduction = False
+
+
 def instantiate(tc, sd, device="cpu"):
+    exact_matmul()
     from transformers import Qwen3_5ForCausalLM, Qwen3_5TextConfig
     from transformers.models.qwen3_5 import modeling_qwen3_5 as q
     config = Qwen3_5TextConfig(**{k: v for k, v in tc.items() if k not in ("model_type",)})
