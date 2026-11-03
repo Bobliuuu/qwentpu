@@ -1,0 +1,12 @@
+[project]
+name = "qwentpu"
+version = "0.3.0"
+description = "A TPU compiled into the weights of Qwen3.5 (Gated DeltaNet state as the weight array)"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26", "torch", "transformers>=5.19", "safetensors"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["qwentpu*"]
