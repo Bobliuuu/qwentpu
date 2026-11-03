@@ -1,0 +1,78 @@
+=== q08 8,8,3,3
+10 passed in 43.12s
+=== q08 8,8,5,5
+10 passed in 31.20s
+=== q08 16,16,3,2
+10 passed in 27.67s
+=== q08 16,16,5,5
+10 passed in 41.69s
+=== q08 32,32,3,3
+10 passed in 49.24s
+=== q08 32,32,4,4
+10 passed in 66.57s (0:01:06)
+=== q2 8,8,3,3
+10 passed in 61.79s (0:01:01)
+=== q2 8,8,5,5
+10 passed in 49.92s
+=== q2 16,16,3,2
+10 passed in 48.13s
+=== q2 16,16,5,5
+E       torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 36.00 MiB. GPU 0 has a total capacity of 14.56 GiB of which 35.81 MiB is free. Including non-PyTorch memory, this process has 14.53 GiB memory in use. Of the allocated memory 14.26 GiB is allocated by PyTorch, and 58.16 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+../venv/lib/python3.10/site-packages/torch/utils/_device.py:122: OutOfMemoryError
+[W1103 23:41:38.712663757 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 37748736 bytes (free: 1900544, total: 15637086208).
+[W1103 23:41:38.728203669 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 37748736 bytes (free: 37552128, total: 15637086208).
+[W1103 23:41:38.728306620 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 37748736 bytes (free: 37552128, total: 15637086208).
+E       torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.00 MiB. GPU 0 has a total capacity of 14.56 GiB of which 1.81 MiB is free. Including non-PyTorch memory, this process has 14.56 GiB memory in use. Of the allocated memory 14.28 GiB is allocated by PyTorch, and 69.09 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+../venv/lib/python3.10/site-packages/torch/utils/_device.py:122: OutOfMemoryError
+[W1103 23:41:40.209095496 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 2097152 bytes (free: 1900544, total: 15637086208).
+[W1103 23:41:40.209183670 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 2097152 bytes (free: 1900544, total: 15637086208).
+FAILED tests/test_merged.py::test_mutation_breaks_it - torch.OutOfMemoryError...
+FAILED tests/test_merged.py::test_driver_xor_and_random_mlp - torch.OutOfMemo...
+2 failed, 8 passed in 158.75s (0:02:38)
+=== q2 32,32,3,3
+E       torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.41 GiB. GPU 0 has a total capacity of 14.56 GiB of which 413.81 MiB is free. Including non-PyTorch memory, this process has 14.16 GiB memory in use. Of the allocated memory 13.55 GiB is allocated by PyTorch, and 404.56 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+../venv/lib/python3.10/site-packages/torch/utils/_device.py:122: OutOfMemoryError
+[W1103 23:43:26.678100788 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1514143744 bytes (free: 308084736, total: 15637086208).
+[W1103 23:43:26.683118502 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1514143744 bytes (free: 433913856, total: 15637086208).
+E       torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 970.00 MiB. GPU 0 has a total capacity of 14.56 GiB of which 413.81 MiB is free. Including non-PyTorch memory, this process has 14.16 GiB memory in use. Of the allocated memory 13.55 GiB is allocated by PyTorch, and 404.56 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+../venv/lib/python3.10/site-packages/torch/utils/_device.py:122: OutOfMemoryError
+[W1103 23:43:29.571642188 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1017118720 bytes (free: 326959104, total: 15637086208).
+[W1103 23:43:29.574719765 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1017118720 bytes (free: 433913856, total: 15637086208).
+FAILED tests/test_merged.py::test_mutation_breaks_it - torch.OutOfMemoryError...
+FAILED tests/test_merged.py::test_hybrid_restore_makes_chip_runs_invisible - ...
+2 failed, 8 passed in 80.13s (0:01:20)
+=== q2 32,32,4,4
+E       torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.61 GiB. GPU 0 has a total capacity of 14.56 GiB of which 2.73 GiB is free. Including non-PyTorch memory, this process has 11.83 GiB memory in use. Of the allocated memory 11.43 GiB is allocated by PyTorch, and 222.27 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+../venv/lib/python3.10/site-packages/torch/utils/_device.py:122: OutOfMemoryError
+[W1103 23:44:17.176922386 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 3871342592 bytes (free: 1436352512, total: 15637086208).
+[W1103 23:44:22.558391317 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 3871342592 bytes (free: 2927427584, total: 15637086208).
+E       torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 20.00 MiB. GPU 0 has a total capacity of 14.56 GiB of which 19.81 MiB is free. Including non-PyTorch memory, this process has 14.54 GiB memory in use. Of the allocated memory 14.11 GiB is allocated by PyTorch, and 246.01 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+../venv/lib/python3.10/site-packages/torch/utils/_device.py:122: OutOfMemoryError
+[W1103 23:44:51.510279977 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 25165824 bytes (free: 16580608, total: 15637086208).
+[W1103 23:44:51.762112427 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 20971520 bytes (free: 20774912, total: 15637086208).
+[W1103 23:44:51.762221552 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 20971520 bytes (free: 20774912, total: 15637086208).
+E       torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 970.00 MiB. GPU 0 has a total capacity of 14.56 GiB of which 19.81 MiB is free. Including non-PyTorch memory, this process has 14.54 GiB memory in use. Of the allocated memory 14.11 GiB is allocated by PyTorch, and 246.01 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+../venv/lib/python3.10/site-packages/torch/utils/_device.py:122: OutOfMemoryError
+[W1103 23:45:03.252067200 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1017118720 bytes (free: 20774912, total: 15637086208).
+[W1103 23:45:03.252282379 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1017118720 bytes (free: 20774912, total: 15637086208).
+E       torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 42.00 MiB. GPU 0 has a total capacity of 14.56 GiB of which 31.81 MiB is free. Including non-PyTorch memory, this process has 14.53 GiB memory in use. Of the allocated memory 14.00 GiB is allocated by PyTorch, and 330.81 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+../venv/lib/python3.10/site-packages/torch/utils/_device.py:122: OutOfMemoryError
+[W1103 23:45:29.830067321 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 14680064 bytes (free: 14483456, total: 15637086208).
+[W1103 23:45:29.859227805 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 44040192 bytes (free: 33357824, total: 15637086208).
+[W1103 23:45:29.859334970 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 44040192 bytes (free: 33357824, total: 15637086208).
+E       torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 12.00 MiB. GPU 0 has a total capacity of 14.56 GiB of which 3.81 MiB is free. Including non-PyTorch memory, this process has 14.56 GiB memory in use. Of the allocated memory 14.02 GiB is allocated by PyTorch, and 329.20 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+../venv/lib/python3.10/site-packages/torch/utils/_device.py:122: OutOfMemoryError
+[W1103 23:45:30.974916565 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 12582912 bytes (free: 3997696, total: 15637086208).
+[W1103 23:45:30.975068973 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 12582912 bytes (free: 3997696, total: 15637086208).
+E       torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 970.00 MiB. GPU 0 has a total capacity of 14.56 GiB of which 3.81 MiB is free. Including non-PyTorch memory, this process has 14.56 GiB memory in use. Of the allocated memory 14.02 GiB is allocated by PyTorch, and 329.19 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+../venv/lib/python3.10/site-packages/torch/utils/_device.py:122: OutOfMemoryError
+[W1103 23:45:38.034906504 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1017118720 bytes (free: 3997696, total: 15637086208).
+[W1103 23:45:38.035586787 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1017118720 bytes (free: 3997696, total: 15637086208).
+FAILED tests/test_merged.py::test_tpu_exact_inside_qwen - torch.OutOfMemoryEr...
+FAILED tests/test_merged.py::test_text_unchanged - torch.OutOfMemoryError: CU...
+FAILED tests/test_merged.py::test_text_after_chip_run - torch.OutOfMemoryErro...
+FAILED tests/test_merged.py::test_mutation_breaks_it - torch.OutOfMemoryError...
+FAILED tests/test_merged.py::test_driver_xor_and_random_mlp - torch.OutOfMemo...
+FAILED tests/test_merged.py::test_hybrid_restore_makes_chip_runs_invisible - ...
+6 failed, 4 passed in 124.87s (0:02:04)
+done

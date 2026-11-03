@@ -1,0 +1,24 @@
+### q08
+text KL 6.88e-04  argmax agree 1.00  max chip logit -2801664
+text KL 4.40e-04  argmax agree 1.00  max chip logit -2768896
+text KL 6.41e-04  argmax agree 1.00  max chip logit -2572288
+.per-position KL after a chip run: [1.316, 0.093, 0.04, 0.014, 0.11, 0.082] | mean from token 4 on: 0.0202
+.per-position KL with restore vs base: [0.0019, 0.0005, 0.0006, 0.0, 0.0005] max 0.0022
+per-position KL with restore vs no chip run at all: [0.0, 0.0, 0.0, 0.0, 0.0] max 0.0
+3 passed, 7 deselected in 16.17s
+### q2
+text KL 7.77e-04  argmax agree 1.00  max chip logit -1155072
+text KL 3.23e-04  argmax agree 1.00  max chip logit -1064960
+text KL 4.70e-04  argmax agree 1.00  max chip logit -1097728
+.per-position KL after a chip run: [1.219, 0.062, 0.098, 0.005, 0.087, 0.03] | mean from token 4 on: 0.0139
+.per-position KL with restore vs base: [0.0004, 0.0005, 0.0004, 0.0016, 0.0003] max 0.0018
+per-position KL with restore vs no chip run at all: [0.0, 0.0, 0.0, 0.0, 0.0] max 0.0
+3 passed, 7 deselected in 20.01s
+### q4
+text KL 4.46e-04  argmax agree 1.00  max chip logit -569344
+text KL 3.34e-04  argmax agree 1.00  max chip logit -610304
+text KL 5.88e-04  argmax agree 0.95  max chip logit -561152
+.per-position KL after a chip run: [1.098, 0.406, 0.211, 0.026, 0.629, 0.173] | mean from token 4 on: 0.0593
+.per-position KL with restore vs base: [0.0005, 0.0002, 0.0003, 0.0, 0.0004] max 0.0019
+per-position KL with restore vs no chip run at all: [0.0, 0.0, 0.0, 0.0, 0.0] max 0.0
+3 passed, 7 deselected in 28.54s

@@ -1,0 +1,7 @@
+{"array": "8x8 u3s3", "model": "q08", "device": "cuda", "mode": "graph", "chain_layers": 4, "vectors": 16, "tokens": 1216, "seconds": 0.09, "tok_per_s": 13392.9, "matvecs_per_s": 704.89, "match_numpy": true}
+{"array": "8x8 u3s3 g2h2", "model": "q08", "device": "cuda", "mode": "graph", "chain_layers": 4, "vectors": 16, "tokens": 768, "seconds": 0.09, "tok_per_s": 8206.5, "matvecs_per_s": 683.88, "match_numpy": true}
+{"array": "16x16 u3s2", "model": "q08", "device": "cuda", "mode": "graph", "chain_layers": 4, "vectors": 16, "tokens": 3008, "seconds": 0.1, "tok_per_s": 29554.5, "matvecs_per_s": 628.82, "match_numpy": true}
+{"array": "16x16 u3s2 g4h4", "model": "q08", "device": "cuda", "mode": "graph", "chain_layers": 4, "vectors": 16, "tokens": 1536, "seconds": 0.31, "tok_per_s": 4915.5, "matvecs_per_s": 204.81, "match_numpy": true}
+{"array": "16x16 u4s4", "model": "q08", "device": "cuda", "mode": "graph", "chain_layers": 4, "vectors": 16, "tokens": 3008, "seconds": 0.23, "tok_per_s": 13196.9, "matvecs_per_s": 280.79, "match_numpy": true}
+{"array": "32x32 u3s3", "model": "q08", "device": "cuda", "mode": "graph", "chain_layers": 4, "vectors": 16, "tokens": 8128, "seconds": 0.3, "tok_per_s": 27309.3, "matvecs_per_s": 215.03, "match_numpy": true}
+{"array": "32x32 u3s3 g4h4", "model": "q08", "device": "cuda", "mode": "graph", "chain_layers": 4, "vectors": 16, "tokens": 5120, "seconds": 0.98, "tok_per_s": 5235.3, "matvecs_per_s": 65.44, "match_numpy": true}

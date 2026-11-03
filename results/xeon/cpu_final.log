@@ -1,0 +1,43 @@
+=== q08 8,8,3,3 suite
+7 passed in 123.66s (0:02:03)
+{"array": "8x8 u3s3", "model": "q08", "device": "cpu", "batch": 1, "hidden": 1280, "layers": 26, "positions": 384, "mismatches": 0, "mid_range_outputs": 28, "tokens": 384, "tok_per_s": 144.6}
+=== q08 8,8,4,4 suite
+7 passed in 32.76s
+{"array": "8x8 u4s4", "model": "q08", "device": "cpu", "batch": 1, "hidden": 1408, "layers": 28, "positions": 384, "mismatches": 0, "mid_range_outputs": 47, "tokens": 384, "tok_per_s": 125.5}
+=== q08 8,8,5,5 suite
+7 passed in 36.29s
+{"array": "8x8 u5s5", "model": "q08", "device": "cpu", "batch": 1, "hidden": 1536, "layers": 31, "positions": 384, "mismatches": 0, "mid_range_outputs": 50, "tokens": 384, "tok_per_s": 105.7}
+=== q08 16,16,3,2 suite
+7 passed in 54.70s
+{"array": "16x16 u3s2", "model": "q08", "device": "cpu", "batch": 1, "hidden": 1408, "layers": 26, "positions": 1152, "mismatches": 0, "mid_range_outputs": 27, "tokens": 1152, "tok_per_s": 156.3}
+=== q08 16,16,4,4 suite
+7 passed in 70.85s (0:01:10)
+{"array": "16x16 u4s4", "model": "q08", "device": "cpu", "batch": 1, "hidden": 1792, "layers": 29, "positions": 1152, "mismatches": 0, "mid_range_outputs": 46, "tokens": 1152, "tok_per_s": 111.1}
+=== q08 32,32,3,3 suite
+7 passed in 209.65s (0:03:29)
+{"array": "32x32 u3s3", "model": "q08", "device": "cpu", "batch": 1, "hidden": 1920, "layers": 30, "positions": 3840, "mismatches": 0, "mid_range_outputs": 12, "tokens": 3840, "tok_per_s": 104.4}
+=== q08 16,16,5,5 suite
+7 passed in 92.08s (0:01:32)
+{"array": "16x16 u5s5", "model": "q08", "device": "cpu", "batch": 1, "hidden": 2048, "layers": 34, "positions": 1152, "mismatches": 0, "mid_range_outputs": 62, "tokens": 1152, "tok_per_s": 81.0}
+=== q08 32,32,4,4 suite
+7 passed in 285.82s (0:04:45)
+{"array": "32x32 u4s4", "model": "q08", "device": "cpu", "batch": 1, "hidden": 2432, "layers": 34, "positions": 3840, "mismatches": 0, "mid_range_outputs": 23, "tokens": 3840, "tok_per_s": 72.9}
+=== q2 8,8,3,3 suite
+7 passed in 270.19s (0:04:30)
+{"array": "8x8 u3s3", "model": "q2", "device": "cpu", "batch": 1, "hidden": 2304, "layers": 26, "positions": 384, "mismatches": 0, "mid_range_outputs": 28, "tokens": 384, "tok_per_s": 64.5}
+=== q2 16,16,4,4 suite
+7 passed in 130.42s (0:02:10)
+{"array": "16x16 u4s4", "model": "q2", "device": "cpu", "batch": 1, "hidden": 2816, "layers": 29, "positions": 1152, "mismatches": 0, "mid_range_outputs": 46, "tokens": 1152, "tok_per_s": 53.1}
+=== q2 32,32,3,3 suite
+7 passed in 390.84s (0:06:30)
+{"array": "32x32 u3s3", "model": "q2", "device": "cpu", "batch": 1, "hidden": 2944, "layers": 30, "positions": 3840, "mismatches": 0, "mid_range_outputs": 12, "tokens": 3840, "tok_per_s": 51.1}
+=== q4 8,8,3,3 suite
+7 passed in 104.12s (0:01:44)
+{"array": "8x8 u3s3", "model": "q4", "device": "cpu", "batch": 1, "hidden": 2816, "layers": 34, "positions": 384, "mismatches": 0, "mid_range_outputs": 28, "tokens": 384, "tok_per_s": 26.5}
+=== q4 16,16,4,4 suite
+7 passed in 264.14s (0:04:24)
+{"array": "16x16 u4s4", "model": "q4", "device": "cpu", "batch": 1, "hidden": 3328, "layers": 37, "positions": 1152, "mismatches": 0, "mid_range_outputs": 46, "tokens": 1152, "tok_per_s": 22.5}
+=== q4 32,32,3,3 suite
+7 passed in 837.29s (0:13:57)
+{"array": "32x32 u3s3", "model": "q4", "device": "cpu", "batch": 1, "hidden": 3456, "layers": 38, "positions": 3840, "mismatches": 0, "mid_range_outputs": 12, "tokens": 3840, "tok_per_s": 21.2}
+done

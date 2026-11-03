@@ -1,0 +1,69 @@
+=== q08 8,8,3,3 suite
+8 passed in 31.15s
+{"array": "8x8 u3s3", "model": "q08", "device": "cuda", "batch": 1, "hidden": 1280, "layers": 26, "positions": 384, "mismatches": 0, "mid_range_outputs": 28, "tokens": 384, "tok_per_s": 2410.3}
+{"array": "8x8 u3s3", "model": "q08", "device": "cuda", "batch": 8, "hidden": 1280, "layers": 26, "positions": 3072, "mismatches": 0, "mid_range_outputs": 182, "tokens": 3072, "tok_per_s": 19477.0}
+=== q08 8,8,4,4 suite
+8 passed in 15.70s
+{"array": "8x8 u4s4", "model": "q08", "device": "cuda", "batch": 1, "hidden": 1408, "layers": 28, "positions": 384, "mismatches": 0, "mid_range_outputs": 47, "tokens": 384, "tok_per_s": 2222.5}
+{"array": "8x8 u4s4", "model": "q08", "device": "cuda", "batch": 8, "hidden": 1408, "layers": 28, "positions": 3072, "mismatches": 0, "mid_range_outputs": 346, "tokens": 3072, "tok_per_s": 18374.4}
+=== q08 8,8,5,5 suite
+8 passed in 17.76s
+{"array": "8x8 u5s5", "model": "q08", "device": "cuda", "batch": 1, "hidden": 1536, "layers": 31, "positions": 384, "mismatches": 0, "mid_range_outputs": 50, "tokens": 384, "tok_per_s": 2036.0}
+{"array": "8x8 u5s5", "model": "q08", "device": "cuda", "batch": 8, "hidden": 1536, "layers": 31, "positions": 3072, "mismatches": 0, "mid_range_outputs": 379, "tokens": 3072, "tok_per_s": 15681.4}
+=== q08 16,16,3,2 suite
+8 passed in 14.69s
+{"array": "16x16 u3s2", "model": "q08", "device": "cuda", "batch": 1, "hidden": 1408, "layers": 26, "positions": 1152, "mismatches": 0, "mid_range_outputs": 27, "tokens": 1152, "tok_per_s": 7702.2}
+{"array": "16x16 u3s2", "model": "q08", "device": "cuda", "batch": 8, "hidden": 1408, "layers": 26, "positions": 9216, "mismatches": 0, "mid_range_outputs": 258, "tokens": 9216, "tok_per_s": 17218.4}
+=== q08 16,16,4,4 suite
+8 passed in 17.13s
+{"array": "16x16 u4s4", "model": "q08", "device": "cuda", "batch": 1, "hidden": 1792, "layers": 29, "positions": 1152, "mismatches": 0, "mid_range_outputs": 46, "tokens": 1152, "tok_per_s": 6746.9}
+{"array": "16x16 u4s4", "model": "q08", "device": "cuda", "batch": 8, "hidden": 1792, "layers": 29, "positions": 9216, "mismatches": 0, "mid_range_outputs": 477, "tokens": 9216, "tok_per_s": 14006.0}
+=== q08 32,32,3,3 suite
+8 passed in 18.20s
+{"array": "32x32 u3s3", "model": "q08", "device": "cuda", "batch": 1, "hidden": 1920, "layers": 30, "positions": 3840, "mismatches": 0, "mid_range_outputs": 40, "tokens": 3840, "tok_per_s": 14061.4}
+{"array": "32x32 u3s3", "model": "q08", "device": "cuda", "batch": 8, "hidden": 1920, "layers": 30, "positions": 30720, "mismatches": 0, "mid_range_outputs": 370, "tokens": 30720, "tok_per_s": 10087.3}
+=== q08 16,16,5,5 suite
+8 passed in 21.14s
+{"array": "16x16 u5s5", "model": "q08", "device": "cuda", "batch": 1, "hidden": 2048, "layers": 34, "positions": 1152, "mismatches": 0, "mid_range_outputs": 62, "tokens": 1152, "tok_per_s": 5784.0}
+{"array": "16x16 u5s5", "model": "q08", "device": "cuda", "batch": 8, "hidden": 2048, "layers": 34, "positions": 9216, "mismatches": 0, "mid_range_outputs": 703, "tokens": 9216, "tok_per_s": 10673.1}
+=== q08 32,32,4,4 suite
+8 passed in 22.97s
+{"array": "32x32 u4s4", "model": "q08", "device": "cuda", "batch": 1, "hidden": 2432, "layers": 34, "positions": 3840, "mismatches": 0, "mid_range_outputs": 131, "tokens": 3840, "tok_per_s": 10978.8}
+{"array": "32x32 u4s4", "model": "q08", "device": "cuda", "batch": 8, "hidden": 2432, "layers": 34, "positions": 30720, "mismatches": 0, "mid_range_outputs": 955, "tokens": 30720, "tok_per_s": 7776.8}
+=== q2 8,8,3,3 suite
+8 passed in 34.26s
+{"array": "8x8 u3s3", "model": "q2", "device": "cuda", "batch": 1, "hidden": 2304, "layers": 26, "positions": 384, "mismatches": 0, "mid_range_outputs": 28, "tokens": 384, "tok_per_s": 2514.6}
+{"array": "8x8 u3s3", "model": "q2", "device": "cuda", "batch": 8, "hidden": 2304, "layers": 26, "positions": 3072, "mismatches": 0, "mid_range_outputs": 182, "tokens": 3072, "tok_per_s": 11637.5}
+=== q2 8,8,4,4 suite
+8 passed in 19.65s
+{"array": "8x8 u4s4", "model": "q2", "device": "cuda", "batch": 1, "hidden": 2432, "layers": 28, "positions": 384, "mismatches": 0, "mid_range_outputs": 47, "tokens": 384, "tok_per_s": 2353.8}
+{"array": "8x8 u4s4", "model": "q2", "device": "cuda", "batch": 8, "hidden": 2432, "layers": 28, "positions": 3072, "mismatches": 0, "mid_range_outputs": 346, "tokens": 3072, "tok_per_s": 10484.1}
+=== q2 8,8,5,5 suite
+8 passed in 25.54s
+{"array": "8x8 u5s5", "model": "q2", "device": "cuda", "batch": 1, "hidden": 2560, "layers": 31, "positions": 384, "mismatches": 0, "mid_range_outputs": 50, "tokens": 384, "tok_per_s": 2054.2}
+{"array": "8x8 u5s5", "model": "q2", "device": "cuda", "batch": 8, "hidden": 2560, "layers": 31, "positions": 3072, "mismatches": 0, "mid_range_outputs": 379, "tokens": 3072, "tok_per_s": 9074.0}
+=== q2 16,16,3,2 suite
+8 passed in 22.43s
+{"array": "16x16 u3s2", "model": "q2", "device": "cuda", "batch": 1, "hidden": 2432, "layers": 26, "positions": 1152, "mismatches": 0, "mid_range_outputs": 27, "tokens": 1152, "tok_per_s": 6429.0}
+{"array": "16x16 u3s2", "model": "q2", "device": "cuda", "batch": 8, "hidden": 2432, "layers": 26, "positions": 9216, "mismatches": 0, "mid_range_outputs": 258, "tokens": 9216, "tok_per_s": 10440.1}
+=== q2 16,16,4,4 suite
+8 passed in 25.14s
+{"array": "16x16 u4s4", "model": "q2", "device": "cuda", "batch": 1, "hidden": 2816, "layers": 29, "positions": 1152, "mismatches": 0, "mid_range_outputs": 46, "tokens": 1152, "tok_per_s": 5500.6}
+{"array": "16x16 u4s4", "model": "q2", "device": "cuda", "batch": 8, "hidden": 2816, "layers": 29, "positions": 9216, "mismatches": 0, "mid_range_outputs": 477, "tokens": 9216, "tok_per_s": 8356.0}
+=== q2 32,32,3,3 suite
+8 passed in 36.35s
+{"array": "32x32 u3s3", "model": "q2", "device": "cuda", "batch": 1, "hidden": 2944, "layers": 30, "positions": 3840, "mismatches": 0, "mid_range_outputs": 40, "tokens": 3840, "tok_per_s": 8329.7}
+{"array": "32x32 u3s3", "model": "q2", "device": "cuda", "batch": 8, "hidden": 2944, "layers": 30, "positions": 30720, "mismatches": 0, "mid_range_outputs": 370, "tokens": 30720, "tok_per_s": 6923.6}
+=== q2 16,16,5,5 suite
+[W1103 03:36:00.615572024 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 329252864 bytes (free: 267517952, total: 23661248512).
+[W1103 03:36:00.625669141 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 329252864 bytes (free: 326238208, total: 23661248512).
+[W1103 03:36:01.911973816 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 264241152 bytes (free: 127008768, total: 23661248512).
+[W1103 03:36:01.922123666 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 264241152 bytes (free: 156368896, total: 23661248512).
+FAILED tests/test_merged.py::test_mutation_breaks_it - torch.OutOfMemoryError...
+FAILED tests/test_merged.py::test_driver_xor_and_random_mlp - torch.OutOfMemo...
+2 failed, 6 passed in 36.33s
+{"array": "16x16 u5s5", "model": "q2", "device": "cuda", "batch": 1, "hidden": 3072, "layers": 34, "positions": 1152, "mismatches": 0, "mid_range_outputs": 62, "tokens": 1152, "tok_per_s": 4468.1}
+{"array": "16x16 u5s5", "model": "q2", "device": "cuda", "batch": 8, "hidden": 3072, "layers": 34, "positions": 9216, "mismatches": 0, "mid_range_outputs": 703, "tokens": 9216, "tok_per_s": 6768.3}
+=== q2 32,32,4,4 suite
+{"array": "32x32 u4s4", "model": "q2", "device": "cuda", "batch": 1, "hidden": 3456, "layers": 34, "positions": 3840, "mismatches": 0, "mid_range_outputs": 131, "tokens": 3840, "tok_per_s": 6475.4}
+done

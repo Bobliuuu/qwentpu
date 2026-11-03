@@ -1,0 +1,13 @@
+=== q08 8,8,3,3
+10 passed in 18.78s
+=== q08 8,8,5,5
+10 passed in 28.13s
+=== q08 16,16,3,2
+10 passed in 22.73s
+=== q08 16,16,5,5
+10 passed in 26.75s
+=== q08 32,32,3,3
+10 passed in 22.18s
+=== q08 32,32,4,4
+10 passed in 28.70s
+done

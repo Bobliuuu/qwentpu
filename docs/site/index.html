@@ -17,7 +17,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<nav><div class="wrap"><b>qwenTPU</b><a href="#run">Run it</a><a href="#arch">Architecture</a><a href="#state">State as RAM</a><a href="#results">Results</a><a href="#compare">Compare</a><a href="https://github.com/Bobliuuu/qwentpu">GitHub ↗</a></div></nav>
+<nav><div class="wrap"><b>qwenTPU</b><a href="#why">Why</a><a href="#run">Run it</a><a href="#arch">Architecture</a><a href="#packing">Packing</a><a href="#chippath">Chip-only</a><a href="#state">State as RAM</a><a href="#hardware">Hardware</a><a href="#bugs">Bug museum</a><a href="#results">Results</a><a href="#compare">Compare</a><a href="https://github.com/Bobliuuu/qwentpu">GitHub ↗</a></div></nav>
 
 <header class="hero"><div class="wrap">
   <h1>A <em>TPU</em> inside Qwen's weights.</h1>
@@ -25,6 +25,16 @@
   <div class="stats" id="stats"></div>
   <div class="btns"><a class="btn primary" href="#run">Watch the array run</a><a class="btn" href="https://github.com/Bobliuuu/qwentpu">Repo</a><a class="btn" href="https://github.com/Bobliuuu/qwentpu/blob/main/WRITEUP.md">Writeup</a></div>
 </div></header>
+
+<section id="why"><div class="wrap">
+  <h2>Why would anyone put a TPU inside a language model?</h2>
+  <p class="sub">Airplanes do not flap their wings. Nobody needs a TPU inside Qwen: a real TPU is faster, cheaper and does not lose its arithmetic to a rounding error. So why do it?</p>
+  <div class="cards">
+    <div class="card"><h3>Because the bird teaches you something</h3><p>A language model is a pile of memory (state), a way to look things up (attention) and a way to compute (FFNs). If that is enough to build an exact matrix-multiply machine, then we learn how much of &quot;intelligence hardware&quot; is hiding in the architecture itself. We are studying the bird, not selling the wing.</p></div>
+    <div class="card"><h3>Because exactness is a hard test</h3><p>Models are sloppy by design. Making every integer survive bf16 rounding, normalisation and a couple of dozen layers of someone else's code is a very unforgiving way to find out what the architecture really does.</p></div>
+    <div class="card"><h3>What we do not claim</h3><p>Not the first machine in Qwen's weights (Qwenputer and QwenPU got there first). Not faster than a real accelerator, or than QwenPU at the op level. Not useful for production. It is an existence proof, with receipts.</p></div>
+  </div>
+</div></section>
 
 <section><div class="wrap">
   <h2>Why a Gated DeltaNet head is already a dataflow array</h2>
@@ -51,6 +61,7 @@
       <button class="btn" id="skip" title="jump past the weight load">Skip load</button>
       <label>speed <input type="range" id="speed" min="1" max="60" value="12"></label>
     </div>
+    <div class="counter" id="counter"></div>
     <div class="progress"><i id="bar"></i></div>
     <div class="tokens" id="tokens" aria-label="token stream"></div>
     <div class="note" id="note"></div>
@@ -73,6 +84,8 @@
 <section id="arch"><div class="wrap">
   <h2>Architecture</h2>
   <p class="sub">Qwen's own layers are muted for chip tokens. The appended TPU layers hold the array. The model's sampled token goes back in as the next layer's activation.</p>
+  <figure><img src="../life-of-a-matvec.svg" alt="The life of one matrix-vector product, from loading weights to feeding the answer to the next layer"><figcaption>The whole story in seven steps. The stepper above runs exactly this.</figcaption></figure>
+  <br>
   <figure><img src="../arch.svg" alt="Architecture: Qwen layers, TPU layers (W heads, AND-product FFN, accumulator heads, adder-tree FFNs, code FFN), lm_head, OUT token fed back"><figcaption>The layer stack is the datapath. There is no program counter and no instruction stream.</figcaption></figure>
   <br>
   <figure><img src="../adder-tree.svg" alt="Adder tree: bit-plane counts to s_j to Horner steps to output code"><figcaption>Counts become the output without ever forming the wide sum y: Horner top-down, q digits per step, clamp only when the range needs it, last step merged into the code FFN.</figcaption></figure>
@@ -81,10 +94,44 @@
   <p class="sub" style="margin-top:14px;font-size:14px"><b>Fine print.</b> Qwen l2-normalises the query and scales it by 1/√(n<sub>q</sub>·128). A multi-hot query is therefore padded to n<sub>q</sub> = 2<sup>odd</sup> rows so that scale is an exact power of two. Otherwise bf16 rounds each count differently (a count of 7 comes back as 6.96875).</p>
 </div></section>
 
+<section id="packing"><div class="wrap">
+  <h2>Tokens are the bottleneck (packing)</h2>
+  <p class="sub">A language model takes one token per step, and every step is a full trip through every layer. Our first array spent one token per input row and one per output column: <b>KR + NC tokens for KR × NC multiply-adds</b>. That is a delivery truck making one trip per parcel.</p>
+  <p class="sub">Packing loads the truck. An <code>ACT</code> token now carries <b>g</b> activations and a <code>READ</code> token reads <b>h</b> columns and answers with <i>one</i> <code>OUT</code> token carrying h outputs. Tokens per matvec fall from KR + NC to <b>KR/g + NC/h</b>.</p>
+  <figure><img src="../packing.svg" alt="Unpacked versus packed token stream and the g head copies per column"><figcaption>Same 64 multiply-adds: 16 tokens unpacked, 4 packed (8×8, g = h = 4).</figcaption></figure>
+  <p class="sub" style="margin-top:14px">The price is real: every column now keeps g copies of its weight head and g accumulator heads, a layer only has 16 key heads, so you need more layers, and the vocabulary balloons because one ACT token can mean any of 8<sup>g</sup> things. MACs per token go 4 → 8 → 16 on 8×8, 32 on 16×16, 64 on 32×32. Every packed configuration is exact in the float64 evaluator and on real Qwen (0 mismatches). Try the packed presets in the stepper above and watch the token counter.</p>
+  <div class="charts" id="pack-charts"></div>
+</div></section>
+
+<section id="chippath"><div class="wrap">
+  <h2>Skip the muted layers (chip-only path)</h2>
+  <p class="sub">Qwen's own layers are muted for chip tokens: their attention output is exactly zero and their MLP sees a zero vector. A layer that adds nothing to the residual stream is the identity. So why walk through 24 of them to get nothing?</p>
+  <p class="sub"><code>ChipPath</code> goes straight from the embedding to the appended TPU layers, then the final norm, then only the chip rows of <code>lm_head</code>. It returns the same bits as the full model (a test checks that) and never touches Qwen's cache, so there is nothing to restore afterwards. It is the shortcut through a building where every corridor you skip is empty.</p>
+  <figure><img src="../chip-path.svg" alt="Full model versus the chip-only path that skips the muted Qwen layers"><figcaption>Text still goes through everything. Only chip tokens take the bypass.</figcaption></figure>
+  <div class="charts" id="chip-charts" style="margin-top:14px"></div>
+</div></section>
+
 <section id="state"><div class="wrap">
   <h2>DeltaNet state as RAM</h2>
   <p class="sub">The recurrence <code>S = αS + k(β(v − Sᵀk))ᵀ</code>, <code>o = Sᵀq</code>, read as memory operations.</p>
   <figure><img src="../gdn-state.svg" alt="DeltaNet state as RAM: one-hot key writes a row, multi-hot query sums rows, alpha zero flushes"></figure>
+</div></section>
+
+<section id="hardware"><div class="wrap">
+  <h2>Does it work on your GPU? (hardware matrix)</h2>
+  <p class="sub">Exact integer arithmetic on bf16 hardware is a statement about a software stack, not about the maths. Different chips and libraries add numbers in different orders, and bf16 only has 8 bits to spare. So we replay the same traces on many devices and count mismatches against NumPy. Dashed cards have not been run yet, and we say so.</p>
+  <figure><img src="../hardware.svg" alt="Hardware matrix: devices and replay results"></figure>
+  <div class="scroll" style="margin-top:14px"><table class="cmp" id="hwtable"></table></div>
+</div></section>
+
+<section id="bugs"><div class="wrap">
+  <h2>Bug museum</h2>
+  <p class="sub">Two exhibits, both of the form &quot;the answer is off by a hair&quot;. Neither was our arithmetic. Both were somebody else's rounding.</p>
+  <figure><img src="../bug-museum.svg" alt="Two numerics traps: an irrational query scale and a split-K bf16 reduction"></figure>
+  <ul class="hon" style="margin-top:14px">
+    <li><b>Exhibit A.</b> Qwen normalises the query and scales it by 1/√128. Pad our multi-hot query to n<sub>q</sub> = 2<sup>odd</sup> rows and that scale is a clean power of two; otherwise a count of 7 comes back as 6.96875.</li>
+    <li><b>Exhibit B.</b> On an L4, cuBLAS sliced the long dot product (split-K) for 288 and 320 token traces and rounded the partial sums to bf16. Setting <code>allow_bf16_reduced_precision_reduction = False</code> keeps the reduction in fp32.</li>
+  </ul>
 </div></section>
 
 <section id="results"><div class="wrap">
@@ -117,6 +164,7 @@
   <p>Credits: <a href="https://github.com/divagr18/qwenputer">Qwenputer</a> by divagr18 (the design ideas this builds on; no shared code) · qwenGPU / <a href="https://github.com/divagr18/QwenPU">QwenPU</a> · <a href="https://github.com/tiny-tpu-v2/tiny-tpu">TinyTPU</a> by tiny-tpu-v2 · base models Qwen3.5.</p>
 </div></footer>
 <script src="data/results.js"></script>
+<script src="data/presets.js"></script>
 <script src="sim.js"></script>
 <script src="app.js"></script>
 </body>

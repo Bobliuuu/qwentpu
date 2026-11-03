@@ -1,0 +1,70 @@
+=== q08 8,8,3,3 tests
+7 passed in 16.91s
+{"array": "8x8 u3s3", "model": "q08", "device": "cuda", "batch": 1, "hidden": 1280, "layers": 26, "positions": 768, "mismatches": 0, "mid_range_outputs": 50, "tokens": 768, "tok_per_s": 1996.7}
+{"array": "8x8 u3s3", "model": "q08", "device": "cuda", "batch": 16, "hidden": 1280, "layers": 26, "positions": 6144, "mismatches": 0, "mid_range_outputs": 322, "tokens": 6144, "tok_per_s": 33074.0}
+=== q08 8,8,4,4 tests
+7 passed in 18.36s
+{"array": "8x8 u4s4", "model": "q08", "device": "cuda", "batch": 1, "hidden": 1408, "layers": 28, "positions": 768, "mismatches": 0, "mid_range_outputs": 90, "tokens": 768, "tok_per_s": 1873.7}
+{"array": "8x8 u4s4", "model": "q08", "device": "cuda", "batch": 16, "hidden": 1408, "layers": 28, "positions": 6144, "mismatches": 0, "mid_range_outputs": 576, "tokens": 6144, "tok_per_s": 29714.1}
+=== q08 8,8,5,5 tests
+7 passed in 19.60s
+{"array": "8x8 u5s5", "model": "q08", "device": "cuda", "batch": 1, "hidden": 1536, "layers": 31, "positions": 768, "mismatches": 0, "mid_range_outputs": 96, "tokens": 768, "tok_per_s": 1721.8}
+{"array": "8x8 u5s5", "model": "q08", "device": "cuda", "batch": 16, "hidden": 1536, "layers": 31, "positions": 6144, "mismatches": 0, "mid_range_outputs": 619, "tokens": 6144, "tok_per_s": 26066.4}
+=== q08 16,16,3,2 tests
+7 passed in 17.21s
+{"array": "16x16 u3s2", "model": "q08", "device": "cuda", "batch": 1, "hidden": 1408, "layers": 26, "positions": 2304, "mismatches": 0, "mid_range_outputs": 63, "tokens": 2304, "tok_per_s": 6124.9}
+{"array": "16x16 u3s2", "model": "q08", "device": "cuda", "batch": 16, "hidden": 1408, "layers": 26, "positions": 18432, "mismatches": 0, "mid_range_outputs": 462, "tokens": 18432, "tok_per_s": 45371.0}
+=== q08 16,16,4,4 tests
+7 passed in 19.40s
+{"array": "16x16 u4s4", "model": "q08", "device": "cuda", "batch": 1, "hidden": 1792, "layers": 29, "positions": 2304, "mismatches": 0, "mid_range_outputs": 125, "tokens": 2304, "tok_per_s": 5620.0}
+{"array": "16x16 u4s4", "model": "q08", "device": "cuda", "batch": 16, "hidden": 1792, "layers": 29, "positions": 18432, "mismatches": 0, "mid_range_outputs": 814, "tokens": 18432, "tok_per_s": 36362.7}
+=== q08 32,32,3,3 tests
+7 passed in 20.24s
+{"array": "32x32 u3s3", "model": "q08", "device": "cuda", "batch": 1, "hidden": 1920, "layers": 30, "positions": 7680, "mismatches": 0, "mid_range_outputs": 38, "tokens": 7680, "tok_per_s": 15481.7}
+{"array": "32x32 u3s3", "model": "q08", "device": "cuda", "batch": 16, "hidden": 1920, "layers": 30, "positions": 61440, "mismatches": 0, "mid_range_outputs": 213, "tokens": 61440, "tok_per_s": 36478.0}
+=== q2 8,8,3,3 tests
+7 passed in 19.32s
+{"array": "8x8 u3s3", "model": "q2", "device": "cuda", "batch": 1, "hidden": 2304, "layers": 26, "positions": 768, "mismatches": 0, "mid_range_outputs": 50, "tokens": 768, "tok_per_s": 2097.5}
+{"array": "8x8 u3s3", "model": "q2", "device": "cuda", "batch": 16, "hidden": 2304, "layers": 26, "positions": 6144, "mismatches": 0, "mid_range_outputs": 322, "tokens": 6144, "tok_per_s": 28400.9}
+{"array": "8x8 u4s4", "model": "q2", "device": "cuda", "batch": 1, "hidden": 2432, "layers": 28, "positions": 768, "mismatches": 0, "mid_range_outputs": 90, "tokens": 768, "tok_per_s": 1932.1}
+{"array": "8x8 u4s4", "model": "q2", "device": "cuda", "batch": 16, "hidden": 2432, "layers": 28, "positions": 6144, "mismatches": 0, "mid_range_outputs": 576, "tokens": 6144, "tok_per_s": 25321.3}
+{"array": "8x8 u5s5", "model": "q2", "device": "cuda", "batch": 1, "hidden": 2560, "layers": 31, "positions": 768, "mismatches": 0, "mid_range_outputs": 96, "tokens": 768, "tok_per_s": 1735.0}
+{"array": "8x8 u5s5", "model": "q2", "device": "cuda", "batch": 16, "hidden": 2560, "layers": 31, "positions": 6144, "mismatches": 0, "mid_range_outputs": 619, "tokens": 6144, "tok_per_s": 22462.8}
+{"array": "16x16 u3s2", "model": "q2", "device": "cuda", "batch": 1, "hidden": 2432, "layers": 26, "positions": 2304, "mismatches": 0, "mid_range_outputs": 63, "tokens": 2304, "tok_per_s": 6027.6}
+{"array": "16x16 u3s2", "model": "q2", "device": "cuda", "batch": 16, "hidden": 2432, "layers": 26, "positions": 18432, "mismatches": 0, "mid_range_outputs": 462, "tokens": 18432, "tok_per_s": 31343.6}
+=== q2 16,16,4,4 tests
+7 passed in 22.45s
+{"array": "16x16 u4s4", "model": "q2", "device": "cuda", "batch": 1, "hidden": 2816, "layers": 29, "positions": 2304, "mismatches": 0, "mid_range_outputs": 125, "tokens": 2304, "tok_per_s": 5372.9}
+{"array": "16x16 u4s4", "model": "q2", "device": "cuda", "batch": 16, "hidden": 2816, "layers": 29, "positions": 18432, "mismatches": 0, "mid_range_outputs": 814, "tokens": 18432, "tok_per_s": 26059.0}
+=== q2 32,32,3,3 tests
+7 passed in 22.10s
+{"array": "32x32 u3s3", "model": "q2", "device": "cuda", "batch": 1, "hidden": 2944, "layers": 30, "positions": 7680, "mismatches": 0, "mid_range_outputs": 38, "tokens": 7680, "tok_per_s": 16821.0}
+{"array": "32x32 u3s3", "model": "q2", "device": "cuda", "batch": 16, "hidden": 2944, "layers": 30, "positions": 61440, "mismatches": 0, "mid_range_outputs": 213, "tokens": 61440, "tok_per_s": 25267.2}
+=== q4 8,8,3,3 tests
+7 passed in 38.74s
+{"array": "8x8 u3s3", "model": "q4", "device": "cuda", "batch": 1, "hidden": 2816, "layers": 34, "positions": 768, "mismatches": 0, "mid_range_outputs": 50, "tokens": 768, "tok_per_s": 1483.9}
+{"array": "8x8 u3s3", "model": "q4", "device": "cuda", "batch": 16, "hidden": 2816, "layers": 34, "positions": 6144, "mismatches": 0, "mid_range_outputs": 322, "tokens": 6144, "tok_per_s": 13772.7}
+{"array": "8x8 u4s4", "model": "q4", "device": "cuda", "batch": 1, "hidden": 3072, "layers": 36, "positions": 768, "mismatches": 0, "mid_range_outputs": 90, "tokens": 768, "tok_per_s": 1502.1}
+{"array": "8x8 u4s4", "model": "q4", "device": "cuda", "batch": 16, "hidden": 3072, "layers": 36, "positions": 6144, "mismatches": 0, "mid_range_outputs": 576, "tokens": 6144, "tok_per_s": 12518.6}
+{"array": "8x8 u5s5", "model": "q4", "device": "cuda", "batch": 1, "hidden": 3072, "layers": 39, "positions": 768, "mismatches": 0, "mid_range_outputs": 96, "tokens": 768, "tok_per_s": 1388.1}
+{"array": "8x8 u5s5", "model": "q4", "device": "cuda", "batch": 16, "hidden": 3072, "layers": 39, "positions": 6144, "mismatches": 0, "mid_range_outputs": 619, "tokens": 6144, "tok_per_s": 11428.8}
+{"array": "16x16 u3s2", "model": "q4", "device": "cuda", "batch": 1, "hidden": 2944, "layers": 34, "positions": 2304, "mismatches": 0, "mid_range_outputs": 63, "tokens": 2304, "tok_per_s": 4779.3}
+{"array": "16x16 u3s2", "model": "q4", "device": "cuda", "batch": 16, "hidden": 2944, "layers": 34, "positions": 18432, "mismatches": 0, "mid_range_outputs": 462, "tokens": 18432, "tok_per_s": 14692.0}
+=== q4 16,16,4,4 tests
+7 passed in 28.49s
+{"array": "16x16 u4s4", "model": "q4", "device": "cuda", "batch": 1, "hidden": 3328, "layers": 37, "positions": 2304, "mismatches": 0, "mid_range_outputs": 125, "tokens": 2304, "tok_per_s": 4347.1}
+{"array": "16x16 u4s4", "model": "q4", "device": "cuda", "batch": 16, "hidden": 3328, "layers": 37, "positions": 18432, "mismatches": 0, "mid_range_outputs": 814, "tokens": 18432, "tok_per_s": 12728.4}
+=== q4 32,32,3,3 tests
+[W1103 00:55:35.931347827 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1184890880 bytes (free: 686358528, total: 42405855232).
+[W1103 00:55:35.946231951 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1184890880 bytes (free: 933822464, total: 42405855232).
+[W1103 00:55:35.143486480 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1052770304 bytes (free: 185139200, total: 42405855232).
+[W1103 00:55:35.154219780 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1052770304 bytes (free: 296288256, total: 42405855232).
+[W1103 00:55:35.609132013 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 526385152 bytes (free: 55115776, total: 42405855232).
+[W1103 00:55:35.614193187 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 526385152 bytes (free: 166264832, total: 42405855232).
+FAILED tests/test_merged.py::test_mutation_breaks_it - torch.OutOfMemoryError...
+FAILED tests/test_merged.py::test_driver_xor_and_random_mlp - torch.OutOfMemo...
+FAILED tests/test_merged.py::test_hybrid_restore_makes_chip_runs_invisible - ...
+3 failed, 4 passed in 23.92s
+{"array": "32x32 u3s3", "model": "q4", "device": "cuda", "batch": 1, "hidden": 3456, "layers": 38, "positions": 7680, "mismatches": 0, "mid_range_outputs": 38, "tokens": 7680, "tok_per_s": 10455.5}
+{"array": "32x32 u3s3", "model": "q4", "device": "cuda", "batch": 16, "hidden": 3456, "layers": 38, "positions": 61440, "mismatches": 0, "mid_range_outputs": 213, "tokens": 61440, "tok_per_s": 12361.3}
+done

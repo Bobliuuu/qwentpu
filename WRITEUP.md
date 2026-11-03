@@ -81,10 +81,13 @@ At `p = 0` the bounds are `[0, AMAX]`: `u` already is the output.
 
 One step absorbs `q` digits, `Z = 2^q u + sum_i 2^i s_(p-q+i)`, and clamps with two units,
 `u = Z + relu(lo - Z) - relu(Z - hi)` (the `Z` term is a free linear form; only the corrections are FFN units, and each
-unit's positive input must be <= 256). `circuit.horner_plan()` picks the largest `q` that fits the window and, for the
-last step, checks whether the output code can be read straight off the unclamped `Z` (`fits_code`). Then the
-code FFN is one layer: per code bit, `[Z >= AMAX]` and `[Z == v]` units, the not-a-read NOP constant, and the
-rewrite of the code dim. Windows allow `KR * 2^(WB-1)` up to about 128; beyond that the planner raises.
+unit's positive input must be <= 256). If `Z`'s range sticks out of `[lo, hi]` by more than 256 the clamp is done in
+several **lossless passes**, each saturating to a partial bound at most 256 beyond the current range edge (clamping to
+`[lo-256, hi+256]` and then to `[lo, hi]` equals clamping to `[lo, hi]`); every pass is one FFN level. `circuit.horner_plan()`
+picks the largest `q` that needs at most one pass (else one digit and as many passes as it takes) and, for the last step,
+checks whether the output code can be read straight off the unclamped `Z` (`fits_code`). The code FFN is then one layer: per
+code bit, `[Z >= AMAX]` and `[Z == v]` units, the not-a-read NOP constant, and the rewrite of the code dim.
+There is no longer a width limit, only a depth cost: 16x16 u5s5 and 32x32 u4s4 take 10 chip layers, 64x64 u3s3 takes 12.
 
 | array | Horner steps (q) | chip layers |
 |---|---|---|
@@ -93,6 +96,8 @@ rewrite of the code dim. Windows allow `KR * 2^(WB-1)` up to about 128; beyond t
 | 8x8 u5s5 | 1 x 5 | 7 |
 | 16x16 u4s4 | 1 x 4 | 5 |
 | 32x32 u3s3 | 1 x 3 | 6 |
+| 16x16 u5s5 | 1 x 5, passes 1,2,2,2,1 | 10 |
+| 32x32 u4s4 | 1 x 4, passes 1,2,2,1 | 10 |
 
 ### A numerics trap: the query scale
 
@@ -100,10 +105,18 @@ Qwen3.5 l2-normalises q and k and scales q by `1/sqrt(128)`. For a multi-hot que
 resulting factor is `1/sqrt(128 n)`. All reads in the state are later divided by the (known) reference column, so a
 common factor cancels, but only if every `o` value is rounded the same way: `o` is cast to bf16 *before* the gated norm.
 If `128 n` is a power of 4 the factor is a power of two and the cast is exact. Otherwise `bf16(c * s)` has a
-different relative error for each count `c`, and the count 7 can come back as 6.96875 (observed on an A100 at KR=16, 3 of 6,144 outputs,
-invisible in float64). The fix pads the accumulator query with `KR` extra rows that are never written (their state is
+different relative error for each count `c`, and some counts come back one rounding step off (observed on an A100 at KR=16, invisible in float64). The fix pads the accumulator query with `KR` extra rows that are never written (their state is
 zero, they only change the l2 norm) whenever `log2 KR` is even. One-hot reads (the weight heads) are immune since
 every value they return has a single set bit. `evaluate.py` now asserts `128 n` is a power of 4 for every multi-hot query.
+
+### A second numerics trap: bf16 split-K
+
+cuBLAS may split a GEMM's K dimension across thread blocks and add the partials *in bf16* when
+`torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction` is on (the default). Whether it does depends on the
+matrix shape and on the GPU. On an L4, traces of 288 and 320 tokens came back wrong; the same code never failed on an A100 or the CPU.
+Switching the flag off fixed every length. `merge.instantiate` now turns it off for all models it builds, and
+`test_exact_for_every_trace_length` guards it. Lesson: an exactness proof in float64 is necessary, not sufficient;
+run on more than one GPU.
 
 TinyTPU mapping:
 
@@ -176,27 +189,34 @@ Not claimed: first accelerator in a model's weights, first NN in weights, higher
 
 ## 6. Results
 
-See the README for the full tables. Summary (A100, bf16, stock `Qwen3_5ForCausalLM`; checkpoints 0.8B / 2B / 4B):
+See the README for the tables. Everything below is read from the raw logs in `results/` (replays `*.jsonl`, pytest outcomes `*.suite`).
 
-* **Exactness:** 393,984 replayed outputs, 0 mismatches against NumPy, six arrays from 8x8 u3s3 up to 8x8 u5s5 and 32x32 u3s3,
-  on all three model sizes; the 7-test model suite passes for all six arrays on 0.8B and for three arrays on 2B and 4B.
-* **Text:** pure-text KL vs base 2.5e-4 to 8.2e-4 (the widening noise floor). Chip tokens never sampled in prose.
-* **Invisibility:** `HybridSession` restores Qwen's own cache around a chip run: text after a TPU run matches the
-  no-run logits at every position (max KL 0.0017 to 0.0047, first token included).
+* **Exactness:** 1,139,712 replayed outputs, 0 mismatches against NumPy, on an A100, an A10G, an L4 and a Xeon, across 0.8B, 2B and 4B
+  (4B on the A100 and the Xeon only). Every recorded `.suite` outcome is `10 passed`; the Xeon logs come from an earlier 7-test suite.
+* **Text:** pure-text KL vs base is asserted below 5e-3 and chip tokens below -1e3 logit at text positions. The suite does not log the KL values themselves.
+* **Invisibility:** the chip-only path never touches Qwen's cache and is asserted bit-identical (KL = 0.0). `HybridSession`'s cache restore is asserted below 1e-4 against a run with no chip activity.
 * **Scaling:** 64, 256 and 1,024 MACs per matvec at 16, 32 and 64 tokens: 4, 8, 16 MACs/token.
-* **Speed:** up to 45k tok/s (0.8B, 16x16 u3s2, batch 16) and 12k to 14k on 4B. Teacher-forced prefill numbers; a matvec's
-  tokens do not depend on each other's outputs, only the hop between layers does.
+
+### What we observed
+
+* **Devices.** Same 8×8 u3s3 0.8B replay, same trace, full network: batch 1 is 2,410 tok/s on an L4, 2,147 on an A10G, 2,036 on an A100, 145 on the Xeon; batch 8 is 19,477 / 15,519 / 16,228 on the three GPUs. The cheaper GPUs were not slower at this size.
+* **Packing.** On an A100 at batch 16, 8×8 `g2h2` reaches 2.54M MACs/s against 1.73M unpacked (+47%) with no extra layers; at batch 1 it is +1%. `g4h4` on 8×8 is +24% at batch 16 for 2 extra layers and a 12,803-token vocabulary. 16×16 u3s2 loses (-15% `g2h2`, -36% `g4h4` at batch 16) and so does 32×32 at batch 1 (-27%, -56%). On the Xeon (batch 1): 8×8 `g2h2` +48%, 16×16 `g2h2` -30%. Packing is a cost trade, not a free lunch.
+* **Depth vs width.** A100, batch 16, 16×16: u3s2 (2 chip layers) 3.05M MACs/s, u4s4 (5 layers) 1.35M, u5s5 (10 layers) 0.65M.
+* **Chip-only path.** 8×8, 0.8B, batch 1: 1,997 to 24,030 tok/s on the A100 (12×; the two runs use different trace lengths) and 171.5 to 2,128 on the Xeon (12×, same trace). Free-running on the Xeon: 1.59 to 25.47 matvec/s.
+* **CUDA graphs.** A100 free-running chained matvecs, TPU layers only: 705 matvec/s on 8×8 u3s3, 684 on 8×8 `g2h2`, 629 on 16×16 u3s2, 281 on 16×16 u4s4, 215 on 32×32 u3s3, 205 on 16×16 u3s2 `g4h4`, 65 on 32×32 `g4h4`; all matched NumPy. No eager A100 baseline for this loop was saved, so no speedup is quoted.
+* **Batching and model size.** 8×8 TPU layers on the A100: 107k tok/s at batch 1, 487k at batch 16. Full-network 8×8 u3s3 at batch 16: 33,074 (0.8B), 28,401 (2B), 13,773 (4B).
+* **Memory.** The first fixtures held base, merged and mutated models at once and ran the A10G and L4 (24 GB) and the 40 GB A100 out of memory in the mutation, XOR/MLP and restore tests. The base model is now rebuilt on demand and freed after each forward pass, so 2B fits 24 GB GPUs and 16 GB hosts. Recorded 2B suite passes on 24 GB cards: A10G on three arrays, L4 on two; the remaining 2B runs there have no recorded outcome.
+* **Two bugs only a second GPU could find:** the irrational query scale and cuBLAS bf16 split-K (both in section 3).
 
 ## 7. Honest limits
 
-* Window: `KR * 2^(WB-1)` must stay near 128 (16x16 u5s5 and 32x32 u4s4 are rejected by the planner). A second adder-tree level
-  with digit-wise requantisation would lift it; not built.
-* Muting alone leaves the first ~3 text tokens after a chip run perturbed (Qwen's conv window; KL ~1.2). The driver's
-  cache restore (`HybridSession`) removes it, but it is a host-side cache operation, not a weight-level fix.
+* Depth: wide operands cost chip layers (multi-pass clamps): 16×16 u5s5 and 32×32 u4s4 are 10 layers, 64×64 u3s3 is 12 (compiled only, not run on a model).
+* Muting alone leaves the first ~3 text tokens after a chip run perturbed (Qwen's conv window). The driver's cache restore (`HybridSession`) removes it, but it is a host-side cache operation, not a weight-level fix.
 * Text-only checkpoints (vision tower dropped). Inference only; no backprop (TinyTPU's other half).
 * The driver streams tokens and relabels an output as the next activation; it does no arithmetic.
-* GPU numbers use HF + flash-linear-attention, batched, on a shared A100. There is no fused custom executor, so a
-  free-running single stream is not faster than the batch-1 numbers.
+* GPU numbers use HF + flash-linear-attention. There is no fused custom executor: CUDA graphs remove launch overhead, not the cost of the HF kernels.
+* Teacher-forced numbers are prefill throughput: a matvec's tokens do not depend on each other, only the hop between layers does.
+* Coverage is limited to the machines with logs in `results/`.
 * The tweets are on X and the threads were not fetchable; qwenGPU details come from tweet text.
 
 ## References
