@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>qwenTPU: a TPU inside Qwen's weights</title>
+<meta name="description" content="A weight-stationary matrix-multiply array compiled into the layers of Qwen3.5. No training, no runtime, 100,000+ replayed outputs with 0 mismatches.">
+<meta property="og:title" content="qwenTPU: a TPU inside Qwen's weights">
+<meta property="og:description" content="Matrix-multiply hardware compiled into Qwen3.5's Gated DeltaNet and SwiGLU weights. Weights and partial sums live in the model's state.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="qwenTPU: a TPU inside Qwen's weights">
+<meta name="twitter:image" content="og.png">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%236246ea'/%3E%3Cpath d='M7 9h18M7 16h18M7 23h18M10 6v20M16 6v20M22 6v20' stroke='white' stroke-width='1.6' opacity='.85'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><div class="wrap"><b>qwenTPU</b><a href="#run">Run it</a><a href="#arch">Architecture</a><a href="#state">State as RAM</a><a href="#results">Results</a><a href="#compare">Compare</a><a href="https://github.com/Bobliuuu/qwentpu">GitHub ↗</a></div></nav>
+
+<header class="hero"><div class="wrap">
+  <h1>A <em>TPU</em> inside Qwen's weights.</h1>
+  <p class="lede">A weight-stationary matrix-multiply array compiled into a stock <code>Qwen3_5ForCausalLM</code>. The weight matrix lives in Gated DeltaNet state, the multipliers and requantiser are SwiGLU layers, and each layer's output token is the next layer's input. No training. No external runtime.</p>
+  <div class="stats" id="stats"></div>
+  <div class="btns"><a class="btn primary" href="#run">Watch the array run</a><a class="btn" href="https://github.com/Bobliuuu/qwentpu">Repo</a><a class="btn" href="https://github.com/Bobliuuu/qwentpu/blob/main/WRITEUP.md">Writeup</a></div>
+</div></header>
+
+<section><div class="wrap">
+  <h2>Why a Gated DeltaNet head is already a dataflow array</h2>
+  <p class="sub">A TPU keeps weights put, streams activations, and accumulates partial sums in place. DeltaNet state <code>S</code> is a matrix with exact row write and row read.</p>
+  <div class="cards">
+    <div class="card"><h3>One-hot write = store a row</h3><p>With α=β=1 and a one-hot key, <code>S += k(v − Sᵀk)ᵀ</code> replaces row i exactly. That loads a weight row, or stores a partial sum.</p></div>
+    <div class="card"><h3>Multi-hot read = adder tree</h3><p>A multi-hot query returns the exact <em>sum</em> of the chosen rows. The contraction over the inner dimension is one read.</p></div>
+    <div class="card"><h3>Counts, not values</h3><p>Products are bit-ANDs, so accumulators hold small integer <em>counts</em> that bf16 stores exactly. The weighted sum is a free linear form.</p></div>
+  </div>
+</div></section>
+
+<section id="run"><div class="wrap">
+  <h2>Watch the array run</h2>
+  <p class="sub">This is the array's semantics in JavaScript: the same tokens, state rows, bit-plane counts and clamp chain as <code>qwentpu/circuit.py</code>. It is not a transformer simulation. The result is checked against a plain integer reference.</p>
+  <div class="stepper" id="stepper">
+    <div class="ctrl">
+      <select id="preset" aria-label="array size"></select>
+      <button class="btn" id="rand">Randomize</button>
+      <label><input type="checkbox" id="chain"> chain a 2nd layer</label>
+      <span class="sp"></span>
+      <button class="btn" id="back" title="step back">◀</button>
+      <button class="btn primary" id="play">Play</button>
+      <button class="btn" id="step" title="step">▶</button>
+      <button class="btn" id="skip" title="jump past the weight load">Skip load</button>
+      <label>speed <input type="range" id="speed" min="1" max="60" value="12"></label>
+    </div>
+    <div class="progress"><i id="bar"></i></div>
+    <div class="tokens" id="tokens" aria-label="token stream"></div>
+    <div class="note" id="note"></div>
+    <div class="grid2">
+      <div>
+        <div class="box" style="margin-bottom:14px"><h4>Weights W (rows = inputs, cols = outputs) <span id="wlabel"></span></h4><div id="wmat" class="scroll"></div></div>
+        <div class="box" style="margin-bottom:14px"><h4>Input vector x (activation tokens)</h4><div id="xvec" class="outs"></div></div>
+        <div class="box"><h4>Output tokens</h4><div id="outs" class="outs"></div><div class="verdict" id="verdict"></div></div>
+      </div>
+      <div>
+        <div class="box" style="margin-bottom:14px"><h4>Per-column heads · DeltaNet state</h4><div class="tiles" id="tiles"></div>
+          <div class="legend"><span style="--c:var(--cell1)">weight bit in W head (rows × weight bits)</span><span style="--c:var(--teal)">AND-product in accumulator (rows × act bit × weight bit)</span></div></div>
+        <div class="box horner"><h4>READ → counts → adder tree <span id="rcol"></span></h4><div id="reader"><span style="color:var(--mute)">waiting for a READ token…</span></div></div>
+      </div>
+    </div>
+    <details class="edit"><summary>Edit weights and inputs by hand</summary><div class="inputs" id="inputs"></div></details>
+  </div>
+</div></section>
+
+<section id="arch"><div class="wrap">
+  <h2>Architecture</h2>
+  <p class="sub">Qwen's own layers are muted for chip tokens. The appended TPU layers hold the array. The model's sampled token goes back in as the next layer's activation.</p>
+  <figure><img src="../arch.svg" alt="Architecture: Qwen layers, TPU layers (W heads, AND-product FFN, accumulator heads, adder-tree FFNs, code FFN), lm_head, OUT token fed back"><figcaption>The layer stack is the datapath. There is no program counter and no instruction stream.</figcaption></figure>
+  <br>
+  <figure><img src="../adder-tree.svg" alt="Adder tree: bit-plane counts to s_j to Horner steps to output code"><figcaption>Counts become the output without ever forming the wide sum y: Horner top-down, q digits per step, clamp only when the range needs it, last step merged into the code FFN.</figcaption></figure>
+  <br>
+  <figure><img src="../token-timeline.svg" alt="Token stream of one matvec"><figcaption>One matvec once the weights are resident: KR <code>ACT</code> tokens, then NC <code>READ</code> tokens, which emit NC <code>OUT</code> tokens. Weights loaded once as <code>CELL(r,c,w)</code> tokens, one per cell. There is no flush: every vector rewrites all KR accumulator rows.</figcaption></figure>
+  <p class="sub" style="margin-top:14px;font-size:14px"><b>Fine print.</b> Qwen l2-normalises the query and scales it by 1/√(n<sub>q</sub>·128). A multi-hot query is therefore padded to n<sub>q</sub> = 2<sup>odd</sup> rows so that scale is an exact power of two. Otherwise bf16 rounds each count differently (a count of 7 comes back as 6.96875).</p>
+</div></section>
+
+<section id="state"><div class="wrap">
+  <h2>DeltaNet state as RAM</h2>
+  <p class="sub">The recurrence <code>S = αS + k(β(v − Sᵀk))ᵀ</code>, <code>o = Sᵀq</code>, read as memory operations.</p>
+  <figure><img src="../gdn-state.svg" alt="DeltaNet state as RAM: one-hot key writes a row, multi-hot query sums rows, alpha zero flushes"></figure>
+</div></section>
+
+<section id="results"><div class="wrap">
+  <h2>Results</h2>
+  <p class="sub">Stock <code>Qwen3_5ForCausalLM</code>, bf16, real checkpoints. Every predicted token is compared with NumPy. Hatched bars are designs not yet measured.</p>
+  <div class="charts" id="charts"></div>
+  <br><div class="scroll"><table class="cmp" id="models"></table></div>
+</div></section>
+
+<section id="compare"><div class="wrap">
+  <h2>What is new, and what is not</h2>
+  <p class="sub">The crowded part is "a machine inside Qwen". The new part is the machine's shape.</p>
+  <div class="scroll"><table class="cmp">
+    <tr><th></th><th>What it is</th><th>Control</th><th>Lives in DeltaNet state</th><th>A token is</th></tr>
+    <tr><td><b>Qwenputer</b><br><small>Qwen3.5-4B</small></td><td>RV32IM CPU, plus an in-weights NPU</td><td>PC, fetch, decode</td><td>registers, code, data</td><td>an instruction</td></tr>
+    <tr><td><b>QwenPU / qwenGPU</b><br><small>Qwen3.5-2B</small></td><td>CPU + 64-lane int8×int4 vector unit; SIMT GPU</td><td>the CPU's program; host-compiled kernel</td><td>vector regs, weight rows, caches</td><td>a vector-op step or warp-launch record</td></tr>
+    <tr><td><b>TinyTPU</b><br><small>RTL, inspiration only</small></td><td>systolic array in hardware description</td><td>sequencer</td><td>(registers in silicon)</td><td>(not applicable)</td></tr>
+    <tr class="us"><td><b>qwenTPU</b><br><small>this repo</small></td><td>weight-stationary dataflow array</td><td>none: the layer stack is the datapath</td><td>the weights <em>and</em> the partial sums</td><td>a dataflow step</td></tr>
+  </table></div>
+  <ul class="hon">
+    <li><b>New, to my knowledge (one search):</b> a TPU-style dataflow machine with no PC or ISA; the DeltaNet multi-hot read used as a reduction; weights and partial sums both in state; bit-plane counting that keeps every value bf16-exact; layers chained through the model's own tokens.</li>
+    <li><b>Not new:</b> putting a machine in Qwen3.5's weights, or running a neural network on it. The ballast-normalised RMSNorm, DeltaNet-rows-as-RAM and token-trace ideas come from Qwenputer.</li>
+    <li><b>Not claimed:</b> faster than QwenPU at the op level (its matvec streams 64 lanes per token; mine does 4 to 16 MACs per token). The scaling is O(N) tokens for O(N²) MACs, not a speed record.</li>
+    <li><b>TinyTPU</b> is the model for the dataflow idea (stationary weights, streamed activations, in-place accumulation). No code or RTL is shared, and our array is not literally systolic: all columns work in parallel through separate heads.</li>
+  </ul>
+</div></section>
+
+<footer><div class="wrap">
+  <p><a href="https://github.com/Bobliuuu/qwentpu"><b>github.com/Bobliuuu/qwentpu</b></a> · MIT</p>
+  <p>Credits: <a href="https://github.com/divagr18/qwenputer">Qwenputer</a> by divagr18 (the design ideas this builds on; no shared code) · qwenGPU / <a href="https://github.com/divagr18/QwenPU">QwenPU</a> · <a href="https://github.com/tiny-tpu-v2/tiny-tpu">TinyTPU</a> by tiny-tpu-v2 · base models Qwen3.5.</p>
+</div></footer>
+<script src="data/results.js"></script>
+<script src="sim.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
