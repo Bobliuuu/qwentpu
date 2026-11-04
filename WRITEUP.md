@@ -187,6 +187,67 @@ Not claimed: first accelerator in a model's weights, first NN in weights, higher
    Qwen's state therefore passes through a chip run untouched. What remains is the conv1d window: the
    first 3 text tokens after a chip run see zero inputs in it.
 
+## 5b. Optimizations
+
+### Optimization 1: tokens are the bottleneck → pack them
+
+<p align="center"><img src="docs/packing.svg" alt="token packing" width="100%"></p>
+
+One `ACT` token can carry **g** activations, and one `READ` token can read **h** columns and emit **h** outputs in a single `OUT` token.
+Every column gets `g` copies of its weight head and `g` accumulator heads; each output slot gets its own adder chain.
+Tokens per matvec fall from `KR + NC` to `KR/g + NC/h`.
+
+| array | tokens / matvec | MACs / token | chip layers |
+|---|---|---|---|
+| 8×8 | 16 | 4 | 2 |
+| 8×8 `g2h2` | **8** | **8** | **2** *(still!)* |
+| 8×8 `g4h4` | 4 | 16 | 4 |
+| 16×16 u3s2 `g4h4` | 8 | **32** | 8 |
+| 32×32 `g4h4` | 16 | **64** | 18 |
+
+Honest result: packing is **not** a free lunch. It trades tokens for heads, layers and vocabulary (`g4h4` at 32×32 has a 45,000-token vocabulary).
+The sweet spot we measured is small and cheap: **`g2h2` on 8×8 is +47% MACs/s on an A100 (batch 16) and +48% on a Xeon (batch 1)**
+and costs *zero* extra layers. On bigger arrays it loses (numbers under *What we observed*).
+
+### Optimization 2: skip the layers that do nothing
+
+<p align="center"><img src="docs/chip-path.svg" alt="chip-only path" width="100%"></p>
+
+Qwen's own layers are **muted** for chip tokens: their mixer output is exactly 0 and their MLP sees a zero vector, so each one is the *identity* on the chip dims.
+So `ChipPath` runs `embed → only the TPU layers → norm → next token` and skips the other 24-32 layers. **Bit-identical** (it's a test), and it never touches
+Qwen's cache, so a TPU run leaves no trace in Qwen's context *by construction*, no restore needed.
+
+| 0.8B · 8×8 · tokens/s | full network | **TPU layers only** |
+|---|---|---|
+| A100, batch 1 (same trace, 1,728 positions) | 6,629 | **74,462** (11×) |
+| Xeon, batch 1 (same replay) | 171.5 | **2,128** (12×) |
+| Xeon, free-running matvec/s | 1.59 | **25.47** (16×) |
+
+*A100 rows come from two replays with different trace lengths (768 vs 3,072 tokens); the Xeon rows are the same trace both ways.*
+
+### Optimization 3: read the answer off the sign bits
+
+The next token is spelled in the sign of ~14 "code" dims. We read those directly instead of multiplying by a chip-vocabulary `lm_head`
+(`hidden × |vocab|` MACs per token, more than the entire TPU once the vocabulary is big). Same argmax, and a test checks the readouts agree (`full == lm_head == code`). We did not keep a timing for this one, so no speedup is claimed.
+
+### Optimization 4: CUDA graphs
+
+A free-running chain (layer *n+1* needs layer *n*'s token) is bound by Python and kernel-launch overhead, not arithmetic. HF's linear-attention cache
+already copies into fixed buffers, so once the states exist every chunk of a given length is static. We capture one CUDA graph per chunk length
+and replay it: **one launch per chunk**, state carried between graphs exactly as between eager calls (bit-identical, tested).
+
+| A100 · 0.8B · free-running · TPU layers + CUDA graphs | matvec / s |
+|---|---|
+| 8×8 u3s3 | **705** |
+| 8×8 `g2h2` | 684 |
+| 16×16 u3s2 | 629 |
+| 16×16 u4s4 | 281 |
+| 32×32 u3s3 | 215 |
+| 16×16 u3s2 `g4h4` | 205 |
+| 32×32 u3s3 `g4h4` | 65 |
+
+Every row matched NumPy. An eager A100 baseline for this loop was not saved, so we do not quote a speedup; on the Xeon the same loop is 1.59 matvec/s on the full network and 25.47 with TPU layers only.
+
 ## 6. Results
 
 See the README for the tables. Everything below is read from the raw logs in `results/` (replays `*.jsonl`, pytest outcomes `*.suite`).
@@ -202,7 +263,7 @@ See the README for the tables. Everything below is read from the raw logs in `re
 * **Devices.** Same 8×8 u3s3 0.8B replay, same trace, full network: batch 1 is 2,410 tok/s on an L4, 2,147 on an A10G, 2,036 on an A100, 145 on the Xeon; batch 8 is 19,477 / 15,519 / 16,228 on the three GPUs. The cheaper GPUs were not slower at this size.
 * **Packing.** On an A100 at batch 16, 8×8 `g2h2` reaches 2.54M MACs/s against 1.73M unpacked (+47%) with no extra layers; at batch 1 it is +1%. `g4h4` on 8×8 is +24% at batch 16 for 2 extra layers and a 12,803-token vocabulary. 16×16 u3s2 loses (-15% `g2h2`, -36% `g4h4` at batch 16) and so does 32×32 at batch 1 (-27%, -56%). On the Xeon (batch 1): 8×8 `g2h2` +48%, 16×16 `g2h2` -30%. Packing is a cost trade, not a free lunch.
 * **Depth vs width.** A100, batch 16, 16×16: u3s2 (2 chip layers) 3.05M MACs/s, u4s4 (5 layers) 1.35M, u5s5 (10 layers) 0.65M.
-* **Chip-only path.** 8×8, 0.8B, batch 1: 1,997 to 24,030 tok/s on the A100 (12×; the two runs use different trace lengths) and 171.5 to 2,128 on the Xeon (12×, same trace). Free-running on the Xeon: 1.59 to 25.47 matvec/s.
+* **Chip-only path.** 8×8, 0.8B, batch 1: 6,629 to 74,462 tok/s on the A100 (11×, same trace) and 171.5 to 2,128 on the Xeon (12×, same trace). Free-running on the Xeon: 1.59 to 25.47 matvec/s.
 * **CUDA graphs.** A100 free-running chained matvecs, TPU layers only: 705 matvec/s on 8×8 u3s3, 684 on 8×8 `g2h2`, 629 on 16×16 u3s2, 281 on 16×16 u4s4, 215 on 32×32 u3s3, 205 on 16×16 u3s2 `g4h4`, 65 on 32×32 `g4h4`; all matched NumPy. No eager A100 baseline for this loop was saved, so no speedup is quoted.
 * **Batching and model size.** 8×8 TPU layers on the A100: 107k tok/s at batch 1, 487k at batch 16. Full-network 8×8 u3s3 at batch 16: 33,074 (0.8B), 28,401 (2B), 13,773 (4B).
 * **Memory.** The first fixtures held base, merged and mutated models at once and ran the A10G and L4 (24 GB) and the 40 GB A100 out of memory in the mutation, XOR/MLP and restore tests. The base model is now rebuilt on demand and freed after each forward pass, so 2B fits 24 GB GPUs and 16 GB hosts. Recorded 2B suite passes on 24 GB cards: A10G on three arrays, L4 on two; the remaining 2B runs there have no recorded outcome.

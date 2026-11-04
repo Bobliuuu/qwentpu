@@ -1,0 +1,397 @@
+{
+ "meta": {
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "edit_note": "Every number is {value,unit,source}; source paths are under qwentpu/results/ or docs/site/data/results.json. Verified against the files with a script (positions and mismatches summed from the .jsonl, suites counted from the .suite/.log). Dropped: 7 -> 89 matvec/s (source log lost)."
+ },
+ "hardware": [
+  {
+   "id": "a100",
+   "label": "A100 40GB",
+   "arch": "Ampere sm80",
+   "models": "0.8B, 2B, 4B",
+   "positions": {
+    "value": 705024,
+    "unit": "",
+    "source": "results/a100/a100.jsonl"
+   },
+   "arrays": {
+    "value": 9,
+    "unit": "",
+    "source": "results/a100/a100.jsonl"
+   },
+   "mismatches": {
+    "value": 0,
+    "unit": "",
+    "source": "results/a100/a100.jsonl"
+   },
+   "clean": {
+    "value": 18,
+    "unit": "",
+    "source": "results/a100/a100.suite, a100q08.suite; docs/site/data/results.json"
+   },
+   "total": {
+    "value": 18,
+    "unit": "",
+    "source": "results/a100/a100.suite, a100q08.suite"
+   }
+  },
+  {
+   "id": "a10g",
+   "label": "A10G 24GB",
+   "arch": "Ampere sm86",
+   "models": "0.8B, 2B",
+   "positions": {
+    "value": 221184,
+    "unit": "",
+    "source": "results/a10g/a10g.jsonl"
+   },
+   "arrays": {
+    "value": 8,
+    "unit": "",
+    "source": "results/a10g/a10g.jsonl"
+   },
+   "mismatches": {
+    "value": 0,
+    "unit": "",
+    "source": "results/a10g/a10g.jsonl"
+   },
+   "clean": {
+    "value": 12,
+    "unit": "",
+    "source": "results/a10g/a10g_final.suite"
+   },
+   "total": {
+    "value": 12,
+    "unit": "",
+    "source": "results/a10g/a10g_final.suite"
+   }
+  },
+  {
+   "id": "l4",
+   "label": "L4 24GB",
+   "arch": "Ada sm89",
+   "models": "0.8B, 2B",
+   "positions": {
+    "value": 190464,
+    "unit": "",
+    "source": "results/l4/l4.jsonl"
+   },
+   "arrays": {
+    "value": 8,
+    "unit": "",
+    "source": "results/l4/l4.jsonl"
+   },
+   "mismatches": {
+    "value": 0,
+    "unit": "",
+    "source": "results/l4/l4.jsonl"
+   },
+   "clean": {
+    "value": 12,
+    "unit": "",
+    "source": "results/l4/l4_final.suite"
+   },
+   "total": {
+    "value": 12,
+    "unit": "",
+    "source": "results/l4/l4_final.suite"
+   }
+  },
+  {
+   "id": "xeon",
+   "label": "x86 Xeon (c6i)",
+   "arch": "Ice Lake, CPU",
+   "models": "0.8B, 2B, 4B",
+   "positions": {
+    "value": 23040,
+    "unit": "",
+    "source": "results/xeon/cpu_final.jsonl"
+   },
+   "arrays": {
+    "value": 8,
+    "unit": "",
+    "source": "results/xeon/cpu_final.jsonl"
+   },
+   "mismatches": {
+    "value": 0,
+    "unit": "",
+    "source": "results/xeon/cpu_final.jsonl"
+   },
+   "clean": {
+    "value": 14,
+    "unit": "",
+    "source": "results/xeon/cpu_final.log"
+   },
+   "total": {
+    "value": 14,
+    "unit": "",
+    "source": "results/xeon/cpu_final.log"
+   }
+  },
+  {
+   "id": "t4",
+   "label": "T4 16GB",
+   "arch": "Turing sm75",
+   "models": "0.8B, 2B",
+   "clean": {
+    "value": 9,
+    "unit": "",
+    "source": "results/t4/t4_final.suite (9 of 12 runs 10 passed; 3 ran out of 16 GB)"
+   },
+   "total": {
+    "value": 12,
+    "unit": "",
+    "source": "results/t4/t4_final.suite"
+   }
+  }
+ ],
+ "total_outputs": {
+  "value": 1139712,
+  "unit": "",
+  "source": "results/outputs.txt"
+ },
+ "chip_path": {
+  "full": {
+   "value": 6628.6,
+   "unit": "tok/s",
+   "source": "results/a100/ab_same_trace.jsonl"
+  },
+  "tpu_only": {
+   "value": 74462.0,
+   "unit": "tok/s",
+   "source": "results/a100/ab_same_trace.jsonl"
+  },
+  "speedup": {
+   "value": 11,
+   "unit": "x",
+   "source": "derived 74462/6628.6 = 11.2 (same trace, 1728 positions, 32 vectors per weight load)"
+  }
+ },
+ "graphs": [
+  {
+   "array": "8x8 u3s3",
+   "v": {
+    "value": 704.89,
+    "unit": "matvec/s",
+    "source": "results/a100/driver_sweep.jsonl"
+   }
+  },
+  {
+   "array": "8x8 g2h2",
+   "v": {
+    "value": 683.88,
+    "unit": "matvec/s",
+    "source": "results/a100/driver_sweep.jsonl"
+   }
+  },
+  {
+   "array": "16x16 u3s2",
+   "v": {
+    "value": 628.82,
+    "unit": "matvec/s",
+    "source": "results/a100/driver_sweep.jsonl"
+   }
+  },
+  {
+   "array": "16x16 u4s4",
+   "v": {
+    "value": 280.79,
+    "unit": "matvec/s",
+    "source": "results/a100/driver_sweep.jsonl"
+   }
+  },
+  {
+   "array": "32x32 u3s3",
+   "v": {
+    "value": 215.03,
+    "unit": "matvec/s",
+    "source": "results/a100/driver_sweep.jsonl"
+   }
+  }
+ ],
+ "layers": [
+  {
+   "label": "3-bit",
+   "chip": {
+    "value": 2,
+    "unit": "",
+    "source": "results/a100/final.jsonl (26 layers - 24 Qwen)"
+   }
+  },
+  {
+   "label": "4-bit",
+   "chip": {
+    "value": 4,
+    "unit": "",
+    "source": "results/a100/final.jsonl (28 layers - 24 Qwen)"
+   }
+  },
+  {
+   "label": "5-bit",
+   "chip": {
+    "value": 7,
+    "unit": "",
+    "source": "results/a100/final.jsonl (31 layers - 24 Qwen)"
+   }
+  }
+ ],
+ "array8": {
+  "tokens": {
+   "value": 16,
+   "unit": "",
+   "source": "docs/site/data/results.json arrays[8x8]"
+  },
+  "macs": {
+   "value": 64,
+   "unit": "",
+   "source": "docs/site/data/results.json arrays[8x8]"
+  },
+  "macs_per_token": {
+   "value": 4,
+   "unit": "",
+   "source": "docs/site/data/results.json arrays[8x8]"
+  }
+ },
+ "max_array": {
+  "macs": {
+   "value": 1024,
+   "unit": "",
+   "source": "docs/site/data/results.json headline.peak_macs"
+  }
+ },
+ "scenes": [
+  {
+   "id": "title",
+   "dur": 6,
+   "label": "qwenTPU",
+   "captions": [
+    [
+     0.4,
+     5.7,
+     "A TPU compiled into the weights of a stock Qwen3.5. No training."
+    ]
+   ]
+  },
+  {
+   "id": "idea",
+   "dur": 10,
+   "label": "THE IDEA",
+   "captions": [
+    [
+     0.3,
+     4.8,
+     "A Gated DeltaNet head is a little RAM with a built-in adder."
+    ],
+    [
+     5,
+     9.7,
+     "A TPU is mostly RAM and adders. It was sitting there the whole time."
+    ]
+   ]
+  },
+  {
+   "id": "matvec",
+   "dur": 16,
+   "label": "LIFE OF A MATVEC",
+   "captions": [
+    [
+     0.3,
+     3.7,
+     "1. Weights load once, as tokens: one token writes one weight."
+    ],
+    [
+     3.9,
+     8.2,
+     "2. Activations stream in. Partial sums pile up in place."
+    ],
+    [
+     8.4,
+     12.4,
+     "3. One multi-hot read returns a whole column sum."
+    ],
+    [
+     12.6,
+     15.7,
+     "4. The output token is the next layer's input."
+    ]
+   ]
+  },
+  {
+   "id": "adder",
+   "dur": 8,
+   "label": "THE ADDER TREE",
+   "captions": [
+    [
+     0.3,
+     3.8,
+     "Counts are folded top-down, saturating as they go."
+    ],
+    [
+     4,
+     7.7,
+     "Saturating early is lossless, so 5-bit operands stay exact."
+    ]
+   ]
+  },
+  {
+   "id": "exact",
+   "dur": 10,
+   "label": "EXACT EVERYWHERE",
+   "captions": [
+    [
+     0.3,
+     4.8,
+     "Replayed against NumPy on four machines: zero mismatches."
+    ],
+    [
+     5,
+     9.7,
+     "The T4 has suites only: 9 of 12 clean, the rest ran out of memory."
+    ]
+   ]
+  },
+  {
+   "id": "speed",
+   "dur": 10,
+   "label": "SPEED (A100)",
+   "captions": [
+    [
+     0.3,
+     4.8,
+     "Skip Qwen's idle layers: batch-1 chip path is 11x faster."
+    ],
+    [
+     5,
+     9.7,
+     "Free-running chained matvecs with CUDA graphs: 705 per second."
+    ]
+   ]
+  },
+  {
+   "id": "honest",
+   "dur": 6,
+   "label": "HONESTLY",
+   "captions": [
+    [
+     0.3,
+     5.7,
+     "Not new: a machine in the weights. New: this architecture."
+    ]
+   ]
+  },
+  {
+   "id": "end",
+   "dur": 5,
+   "label": "qwenTPU",
+   "captions": [
+    [
+     0.3,
+     4.7,
+     "Watch it run in your browser, or read the code."
+    ]
+   ]
+  }
+ ]
+}

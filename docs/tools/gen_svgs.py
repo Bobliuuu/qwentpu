@@ -326,7 +326,7 @@ s+=path(f'M95 326 C95 372 {x+66} 372 {x+66} 330',True,'teal',2.5)
 s+=t((95+x+66)/2,380,'bypass: the same bits, none of the work',12.5,'b','middle','var(--teal)')
 s+=f'<rect x="40" y="406" width="{W-80}" height="86" rx="12" fill="var(--soft)"/>'
 s+=t(60,432,'Bit-identical to the full model (a test checks it) and Qwen’s own cache is never touched, so no restore is needed.',12.5,'b')
-s+=t(60,456,'A100, 0.8B, 8×8, batch 1: 1,997 tok/s (full) to 24,030 tok/s (TPU layers only), 12×. Xeon, same replay: 171.5 to 2,128 tok/s, 12×.',12.5,'mono')
+s+=t(60,456,'A100, 0.8B, 8×8, batch 1: 6,629 tok/s (full) to 74,462 tok/s (TPU layers only), 11×. Xeon, same replay: 171.5 to 2,128 tok/s, 12×.',12.5,'mono')
 s+=t(60,478,'The work saved is about 1 − (TPU layers ÷ all layers), which is why small arrays with few chip layers gain the most.',12.5,'m')
 s+='</svg>'
 open(OUT+'chip-path.svg','w').write(s)

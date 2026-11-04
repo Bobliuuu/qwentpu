@@ -1,36 +1,49 @@
 <p align="center"><img src="docs/banner.svg" alt="qwenTPU: a TPU compiled into the weights of Qwen3.5" width="100%"></p>
 
 <h1 align="center">✈️ qwenTPU</h1>
-<p align="center"><b>Airplanes don't flap their wings. This TPU doesn't have a chip.<br>It's a language model that learned to do matrix multiplication, without learning anything.</b></p>
+<p align="center"><b>Airplanes don't flap their wings. This TPU doesn't have a chip.<br>It's a language model that does exact matrix multiplication, with no training.</b></p>
 
 <p align="center">
-<a href="docs/site/index.html"><b>🎮 Watch it run</b></a> ·
+<a href="https://bobliuuu.github.io/qwentpu/"><b>🎮 Watch it run</b></a> ·
 <a href="WRITEUP.md"><b>📖 Write-up</b></a> ·
+<a href="#-what-is-actually-new"><b>🧭 What's new</b></a> ·
 <a href="#-does-it-work-on-your-hardware"><b>🔬 Hardware</b></a> ·
 <a href="#-quickstart"><b>🚀 Quickstart</b></a>
 </p>
 
 ---
 
-## 🛬 TL;DR
+We took a stock **Qwen3.5** (0.8B, 2B or 4B), compiled a few new layers into it, and it now contains a **weight-stationary matrix-multiply array**:
+up to **32×32 (1,024 MACs per matvec)** with up to **5-bit operands**. Every new weight is computed; Qwen's own weights are untouched. Output is integer-exact against NumPy
+(0 mismatches in 1,139,712 replayed token positions on four machines), plain text generation is unchanged (KL 3e-4 to 8e-4), and a TPU run leaves no trace in Qwen's context.
 
-We took a stock **Qwen3.5** (0.8B, 2B or 4B), wrote a few new layers into it with a compiler, and it now contains a
-**weight-stationary matrix-multiply array**, a TPU, up to **32×32 (1,024 MACs per matvec)** with up to **5-bit operands**.
+<p align="center"><img src="docs/arch.svg" alt="architecture" width="100%"></p>
 
-- 🧠 **No training.** Every new weight is computed. Qwen's own weights are not touched.
-- 🎯 **Exact.** Integer-exact against NumPy: **1,139,712 outputs checked, 0 mismatches**, on **5 different machines** (NVIDIA A100, A10G and L4 GPUs across two architectures, plus an x86 Xeon).
-- 🤐 **Silent.** Plain text generation stays within KL < 5e-3 of the base model (asserted by the suite), and a chip-only TPU run leaves *no trace* in Qwen's context (KL = 0.0, bit-identical).
-- ⚡ **Fast enough to be fun.** Free-running chained matvecs: **705 matvec/s** on an A100 (0.8B, 8×8) with CUDA graphs, through four optimizations (below).
+## 🧭 What is actually new
 
-If you read nothing else: a Gated DeltaNet head is a little RAM with a built-in adder. A TPU is mostly RAM and adders.
-So it was sitting there the whole time. 🪽
+Putting a machine into Qwen3.5's weights is **not** new: [Qwenputer](https://github.com/divagr18/qwenputer) did a RISC-V CPU, [QwenPU](https://github.com/divagr18/QwenPU) a CPU plus vector unit, qwenGPU a SIMT GPU.
+Their design vocabulary (DeltaNet rows as RAM, tokens as the trace) is what we build on. Four things here are ours:
 
----
+| | the new part | why it matters |
+|---|---|---|
+| 1 | **A dataflow array, not a CPU.** No program counter, no instruction stream: the layer stack *is* the datapath, and layers chain through the model's own sampled tokens. | The others emulate a processor. This is the first one that is the accelerator's *structure*. |
+| 2 | **One multi-hot read is a whole reduction.** A Gated DeltaNet head returns the exact sum of the rows you select, so the adder tree costs one read. | A TPU is mostly RAM plus adders, and a DeltaNet head already is both. |
+| 3 | **Exact integers in bf16, up to 5 bits.** Bit-plane counting, then a top-down fold with saturating clamps that is provably lossless. | bf16 only compares small integers exactly. This is what makes 16×16 and 32×32 possible. |
+| 4 | **Zero trace.** Qwen's own layers are muted for chip tokens, so a chip-only path skips them and a TPU run leaves Qwen's context bit-identical (KL = 0.0). | The TPU and the language model share one set of weights without disturbing each other. |
 
-## 🧠 The one idea
+| | machine | control | state holds | a token is |
+|---|---|---|---|---|
+| Qwenputer | RV32IM CPU | PC, fetch, decode | registers, code, data | an instruction |
+| QwenPU | CPU + vector unit | the CPU's program | vector regs, weight rows, KV | a vector-op step |
+| qwenGPU | SIMT GPU | host-compiled kernel | registers, global memory | a warp-launch record |
+| **qwenTPU** | **weight-stationary array** | **none** | **weights *and* partial sums** | **a dataflow step** |
 
-A **TPU** is a dataflow machine: *weights stay put, activations flow past them, partial sums pile up in place.*
-A **Gated DeltaNet head** (the linear-attention layer in Qwen3.5) keeps a state matrix `S`:
+Not faster than QwenPU per op (it streams 64 lanes per token, we do 4 to 64 MACs per token), and "to my knowledge" rests on one search, not an exhaustive one.
+[TinyTPU](https://github.com/tiny-tpu-v2/tiny-tpu) is the architecture reference only: this repo shares no code with it, and our array is not systolic in space.
+
+## 🧠 How it works
+
+A Gated DeltaNet head (Qwen3.5's linear-attention layer) keeps a state matrix `S`. That is exactly the memory and adder a TPU needs:
 
 | Gated DeltaNet does… | …which, for a TPU, is |
 |---|---|
@@ -39,114 +52,38 @@ A **Gated DeltaNet head** (the linear-attention layer in Qwen3.5) keeps a state 
 | a **multi-hot read** returns the exact **sum** of the chosen rows | **the adder tree. A whole reduction in one read.** |
 | the sampled token is fed back in | layer *n*'s output **is** layer *n+1*'s input |
 
-So: weights live in state 🗄️ · activations arrive as tokens 🎟️ · products are bit-ANDs in SwiGLU layers ✖️ · the reduction is one head read ➕ · and the answer is *sampled as the next token*, which is the next layer's input 🔁.
-
-<p align="center"><img src="docs/arch.svg" alt="architecture" width="100%"></p>
-
-## 🎬 Life of a matvec
+Weights live in state 🗄️, activations arrive as tokens 🎟️, products are bit-ANDs in SwiGLU layers ✖️, the reduction is one head read ➕, and the answer is sampled as the next token 🔁.
 
 <p align="center"><img src="docs/life-of-a-matvec.svg" alt="life of a matvec" width="100%"></p>
 
-```text
-CELL(r,c,w)   × KR·NC    📥 load the weights, once       one token writes one weight into DeltaNet state
-ACT(s; v…)    × KR/g     🌊 stream a vector              g activations per token → AND-products → accumulator rows
-READ(k)       × NC/h     📤 read h columns at once       multi-hot sum of rows → adder tree → OUT(v…)
-                                                          OUT is the model's own next token = the next layer's input
-```
-
-Nothing here is a plug-in or a tool call. Every step is a forward pass of the stock Qwen3.5 architecture.
-The host does no arithmetic: it relabels one output token as the next input.
-
----
-
-## 🧮 The adder tree (why it can be 5-bit)
+The accumulator returns *counts* of rows with activation bit *a* and weight bit *b* set, and `y = Σ 2^a · Σ_b wt_b · cnt[a][b]` is far too wide to compare exactly in bf16. So the sum is folded top-down,
+`u ← clamp(2^q·u + next digits)`, and saturating early is lossless: once `u` is past what the remaining digits could undo, the answer is already pinned. Wider ranges clamp in several lossless passes.
 
 <p align="center"><img src="docs/adder-tree.svg" alt="carry-save adder tree" width="100%"></p>
-
-The accumulator returns *counts*: how many rows have activation bit *a* **and** weight bit *b* set. The exact answer is
-`y = Σ 2^a · Σ_b wt_b · cnt[a][b]`, but `y` is far too wide for a bf16-exact comparator (a SwiGLU gate only compares small integers exactly).
-
-So we fold it **top-down**, saturating as we go: `u ← clamp(2^q·u + next digits)`. The trick is that saturating early is **lossless**:
-once `u` is past the value the remaining digits could ever undo, the answer is already pinned at 0 or max.
-A clamp costs two SwiGLU units (`Z + relu(lo−Z) − relu(Z−hi)`). If a range is wider than bf16's exact window (256), the clamp runs in
-**several lossless passes**. The last step is fused into the output-code layer.
 
 | array | chip layers |
 |---|---|
 | 8×8, 3-bit | **2** |
-| 8×8, 4-bit | 4 |
 | 8×8, **5-bit** | 7 |
-| 16×16, 4-bit | 5 |
 | 16×16, **5-bit** | 10 |
 | 32×32, 3-bit | 6 |
-| 64×64, 3-bit | 12 |
 
----
+## ⚡ Speed
 
-## 📦 Optimization #1: tokens are the bottleneck → pack them
+Depth is the price of width, and the biggest wins are in skipping work, not adding it (details and the packing trade-off in the [write-up](WRITEUP.md)):
 
-<p align="center"><img src="docs/packing.svg" alt="token packing" width="100%"></p>
-
-One `ACT` token can carry **g** activations, and one `READ` token can read **h** columns and emit **h** outputs in a single `OUT` token.
-Every column gets `g` copies of its weight head and `g` accumulator heads; each output slot gets its own adder chain.
-Tokens per matvec fall from `KR + NC` to `KR/g + NC/h`.
-
-| array | tokens / matvec | MACs / token | chip layers |
-|---|---|---|---|
-| 8×8 | 16 | 4 | 2 |
-| 8×8 `g2h2` | **8** | **8** | **2** *(still!)* |
-| 8×8 `g4h4` | 4 | 16 | 4 |
-| 16×16 u3s2 `g4h4` | 8 | **32** | 8 |
-| 32×32 `g4h4` | 16 | **64** | 18 |
-
-Honest result: packing is **not** a free lunch. It trades tokens for heads, layers and vocabulary (`g4h4` at 32×32 has a 45,000-token vocabulary).
-The sweet spot we measured is small and cheap: **`g2h2` on 8×8 is +47% MACs/s on an A100 (batch 16) and +48% on a Xeon (batch 1)**
-and costs *zero* extra layers. On bigger arrays it loses (numbers under *What we observed*).
-
-## ⏩ Optimization #2: skip the layers that do nothing
+| A100 · 0.8B · 8×8 u3s3 | |
+|---|---|
+| whole network, batch 1, same trace | 6,629 tok/s |
+| **TPU layers only** (Qwen's muted layers skipped, bit-identical) | **74,462 tok/s** (11×) |
+| free-running chained matvecs, TPU layers + **CUDA graphs** | **705 matvec/s** |
 
 <p align="center"><img src="docs/chip-path.svg" alt="chip-only path" width="100%"></p>
 
-Qwen's own layers are **muted** for chip tokens: their mixer output is exactly 0 and their MLP sees a zero vector, so each one is the *identity* on the chip dims.
-So `ChipPath` runs `embed → only the TPU layers → norm → next token` and skips the other 24-32 layers. **Bit-identical** (it's a test), and it never touches
-Qwen's cache, so a TPU run leaves no trace in Qwen's context *by construction*, no restore needed.
-
-| 0.8B · 8×8 · tokens/s | full network | **TPU layers only** |
-|---|---|---|
-| A100, batch 1 | 1,997 | **24,030** (12×) |
-| Xeon, batch 1 (same replay) | 171.5 | **2,128** (12×) |
-| Xeon, free-running matvec/s | 1.59 | **25.47** (16×) |
-
-*A100 rows come from two replays with different trace lengths (768 vs 3,072 tokens); the Xeon rows are the same trace both ways.*
-
-## 🔢 Optimization #3: read the answer off the sign bits
-
-The next token is spelled in the sign of ~14 "code" dims. We read those directly instead of multiplying by a chip-vocabulary `lm_head`
-(`hidden × |vocab|` MACs per token, more than the entire TPU once the vocabulary is big). Same argmax, and a test checks the readouts agree (`full == lm_head == code`). We did not keep a timing for this one, so no speedup is claimed.
-
-## 📹 Optimization #4: CUDA graphs
-
-A free-running chain (layer *n+1* needs layer *n*'s token) is bound by Python and kernel-launch overhead, not arithmetic. HF's linear-attention cache
-already copies into fixed buffers, so once the states exist every chunk of a given length is static. We capture one CUDA graph per chunk length
-and replay it: **one launch per chunk**, state carried between graphs exactly as between eager calls (bit-identical, tested).
-
-| A100 · 0.8B · free-running · TPU layers + CUDA graphs | matvec / s |
-|---|---|
-| 8×8 u3s3 | **705** |
-| 8×8 `g2h2` | 684 |
-| 16×16 u3s2 | 629 |
-| 16×16 u4s4 | 281 |
-| 32×32 u3s3 | 215 |
-| 16×16 u3s2 `g4h4` | 205 |
-| 32×32 u3s3 `g4h4` | 65 |
-
-Every row matched NumPy. An eager A100 baseline for this loop was not saved, so we do not quote a speedup; on the Xeon the same loop is 1.59 matvec/s on the full network and 25.47 with TPU layers only.
-
----
-
 ## 🔬 Does it work on your hardware?
 
-"Exact on an A100" is a claim about an A100. So we ran the same suite everywhere we could get a machine.
+An exactness proof in float64 is necessary, not sufficient. Running the same suite on different GPUs found two bugs a simulation could never see: bf16 rounding of Qwen's `1/√128` query scale at 16 query rows,
+and cuBLAS split-K adding partials in bf16 on an L4 (traces of 288 and 320 tokens came back wrong; the A100 never showed it). Both are fixed and guarded by tests (see the write-up).
 
 | device | architecture | models | arrays replayed | positions replayed | mismatches | suite runs clean |
 |---|---|---|---|---|---|---|
@@ -156,114 +93,9 @@ Every row matched NumPy. An eager A100 baseline for this loop was not saved, so 
 | T4 16GB | Turing sm75 | 0.8B, 2B | n/a | n/a | n/a | 9/12 |
 | x86 Xeon (c6i, Ice Lake) | x86-64 | 0.8B, 2B, 4B | 8 | 23,040 | **0** | 14/14 |
 
-The suite is 10 tests per (model, array), 9 on CPU (the CUDA-graph test is skipped): TPU exact inside Qwen · exact with text already in the cache · pure-text KL · text after a chip run ·
-exact for every trace length · mutation test (zero the TPU layers and the answers must break) · XOR + random 2-layer MLPs through the real model ·
-chip-only path bit-identical · CUDA-graph executor bit-identical · restore invisible (KL < 1e-4 after a cache restore, 0.0 on the chip-only path). Replay = `bench.py` comparing every predicted token with NumPy.
-
----
-
-## 👀 What we observed
-
-Everything here comes from the raw logs in `results/` (replays `*.jsonl`, pytest outcomes `*.suite`). Throughput is tokens/s unless noted.
-
-- **Exact everywhere we looked.** 1,139,712 replayed outputs, 0 mismatches against NumPy, on every device in the table above. Every A100, A10G and L4 suite run is `10 passed`. The T4 passes all twelve 0.8B and the three smallest 2B runs, and runs out of its 16 GB on the bigger 2B arrays (9 of 12 clean). The Xeon logs are from an earlier 7-test suite, `7 passed`. The T4 has suites only, no replay.
-- **Cheaper GPUs were not slower here.** Same 8×8 u3s3 replay on 0.8B, same trace, full network: batch 1 is 2,410 tok/s on an L4, 2,147 on an A10G, 2,036 on an A100; batch 8 is 19,477 / 15,519 / 16,228. That fits launch overhead, not FLOPs, dominating at this size. The Xeon does 145 at batch 1.
-- **Packing wins on small arrays only.** `g2h2` on 8×8 is +47% MACs/s on an A100 at batch 16 (2.54M vs 1.73M) and +1% at batch 1; `g4h4` is +24% at batch 16 but adds 2 layers and a 12,803-token vocabulary. On 16×16 u3s2 `g2h2` is -15% and `g4h4` -36% at batch 16; on 32×32 at batch 1 they are -27% and -56%. The Xeon agrees: 8×8 `g2h2` +48%, 16×16 `g2h2` -30%.
-- **Depth is what wide operands cost.** On an A100 at batch 16, a 16×16 array does 3.05M MACs/s with 3-bit activations and 2-bit weights (2 chip layers), 1.35M with 4-bit (5 layers) and 0.65M with 5-bit (10 layers).
-- **Most of Qwen's layers are dead weight for chip tokens.** Skipping them is 12× on an A100 at batch 1 (1,997 → 24,030 tok/s) and 12× on the Xeon on the same replay (171.5 → 2,128).
-- **Free-running chains are far slower than batched replay.** With CUDA graphs an A100 does 705 matvec/s on 8×8 u3s3, 629 on 16×16 u3s2, 215 on 32×32 u3s3 and 65 on 32×32 `g4h4`. Each layer waits for the previous layer's token, so these are not comparable to the batched replay numbers in *Results*.
-- **Batching pays.** 8×8 on an A100, TPU layers only: 107k tok/s at batch 1, 487k at batch 16.
-- **Bigger base models are slower.** Full-network 8×8 u3s3 at batch 16 on an A100: 33,074 (0.8B), 28,401 (2B), 13,773 (4B).
-- **Memory was the boring bug.** The first test fixtures held the base model, the merged model and a mutated copy at once. That ran 24 GB cards (A10G, L4) out of memory in the mutation, XOR/MLP and restore tests, and it hit the 40 GB A100 too. The base model is now rebuilt on demand and freed after each forward pass, so the 2B suites run on 24 GB GPUs and on 16 GB hosts. Recorded 2B passes on 24 GB cards: A10G on 8×8 u3s3, 8×8 u5s5 and 16×16 u3s2; L4 on 8×8 u3s3 and 16×16 u3s2. The other 2B suite runs on those cards have no outcome recorded.
-
-## 🪲 Bug museum
-
-Cross-hardware testing found two bugs that float64 simulation could never see.
-
-<p align="center"><img src="docs/bug-museum.svg" alt="bug museum" width="100%"></p>
-
-**🐛 #1 The irrational scale.** Qwen l2-normalises the query and scales it by `1/√128`. For a multi-hot query of `n` rows that factor is exact only if `n·128` is a power of 4.
-At 16 rows it isn't, so bf16 rounds `count × scale` differently for each count and some counts came back one rounding step off. float64 simulation never saw it.
-Fix: pad the query with unused all-zero state rows. The exactness evaluator now rejects any query that breaks the rule.
-
-**🐛 #2 cuBLAS bf16 split-K.** With `allow_bf16_reduced_precision_reduction` on (PyTorch's default), cuBLAS may split a GEMM's K dimension and add the partials *in bf16*.
-Whether it does depends on the matrix shape **and the GPU**. On an **L4**, traces of 288 and 320 tokens came back wrong. The A100 and the CPUs never showed it. Fix: switch the flag off in `merge.instantiate`; `test_exact_for_every_trace_length` guards it.
-Lesson: an exactness proof in float64 is necessary, not sufficient. **Run on more than one GPU.**
-
----
-
-## 🧭 What's new, what's not (honestly)
-
-**Not new:** putting a machine into Qwen3.5's weights, or running a neural net on it.
-[Qwenputer](https://github.com/divagr18/qwenputer) put a RISC-V CPU there and ran stories260K on an in-weights NPU; [QwenPU](https://github.com/divagr18/QwenPU) added a 64-lane int8×int4 vector unit; qwenGPU did a SIMT GPU.
-The design vocabulary (ballast-normalised RMSNorm, DeltaNet rows as RAM, tokens as the trace) is theirs.
-
-**New (to my knowledge; one search, not exhaustive): the architecture.**
-
-| | machine | control | state holds | a token is |
-|---|---|---|---|---|
-| Qwenputer | RV32IM CPU | PC, fetch, decode | registers, code, data | an instruction |
-| QwenPU | CPU + vector unit | the CPU's program | vector regs, weight rows, KV | a vector-op step |
-| qwenGPU | SIMT GPU | host-compiled kernel | registers, global memory | a warp-launch record |
-| **qwenTPU** | **weight-stationary array** | **none** | **weights *and* partial sums** | **a dataflow step** |
-
-No program counter, no instruction stream: the layer stack *is* the datapath. One multi-hot read is the whole reduction. Bit-plane counting keeps every value bf16-exact.
-Layers chain through the model's own tokens. It is **not faster than QwenPU at the op level**: its matvec streams 64 lanes per token, we do 4 to 64 MACs per token.
-
-### 🤔 Do we need TinyTPU?
-
-No. [TinyTPU](https://github.com/tiny-tpu-v2/tiny-tpu) is real RTL and this repo shares **no code, netlist or test** with it. It's the *reference for the architecture*:
-weights held in the PEs, activations streamed, integer accumulate, a post-processing unit. Two honest differences: this array is not *systolic in space*
-(no PE-to-PE forwarding: every column sees the same `ACT` token), and it's inference-only. "TPU" here means *weight-stationary dataflow matrix unit with a requantising output stage*.
-
----
-
-## 📊 Results
-
-**Arrays** (`QWENTPU_CFG=rows,cols,abits,wbits[,g,h]`; weights two's complement, activations unsigned, output requantised to `abits`).
-
-| array | MACs / matvec | tokens / matvec | MACs / token | chip layers |
-|---|---|---|---|---|
-| 8×8 u3·s3 | 64 | 16 | 4 | **2** |
-| 8×8 u4·s4 | 64 | 16 | 4 | 4 |
-| 8×8 **u5·s5** | 64 | 16 | 4 | 7 |
-| 16×16 u3·s2 | 256 | 32 | 8 | 2 |
-| 16×16 u4·s4 | 256 | 32 | 8 | 5 |
-| 16×16 **u5·s5** | 256 | 32 | 8 | 10 |
-| **32×32** u3·s3 | **1,024** | 64 | 16 | 6 |
-| 32×32 u4·s4 | 1,024 | 64 | 16 | 10 |
-| 64×64 u3·s3 *(compiled, not run on a model)* | 4,096 | 128 | 32 | 12 |
-
-**Per model** (8×8 u3s3; KL measured on the A100, three prompts, `results/a100/kl.out`).
-
-| | 0.8B | 2B | 4B |
-|---|---|---|---|
-| layers (Qwen + TPU) | 24 + 2 | 24 + 2 | 32 + 2 |
-| hidden (base → merged) | 1024 → 1280 | 2048 → 2304 | 2560 → 2816 |
-| value / key heads | 16 / 16 | 16 / 16 | **32 / 16** |
-| pure-text KL vs base | 4.4e-4 – 6.9e-4 | 3.2e-4 – 7.8e-4 | 3.3e-4 – 5.9e-4 |
-
-**Invisible to the text path.** Chip tokens are muted inside Qwen's own layers (GDN `a=b=z=−1024`, attention output gate, an anti-sink key), `tau` keeps them from being sampled in prose,
-and with the chip-only path (or `HybridSession`'s cache restore) a TPU run changes **nothing** in Qwen's context:
-
-| text after a TPU run vs the same model with no run | KL |
-|---|---|
-| muting only | not zero: first token KL 1.1 – 1.3, because Qwen's conv window sees zeros for ~3 tokens; mean KL from token 4 on is 0.014 – 0.059 (0.8B / 2B / 4B) |
-| `HybridSession` cache restore | **0.0** vs a run with no chip; max 0.0018 – 0.0022 vs the unmodified base |
-| chip-only path | **0.0 (asserted bit-identical)** |
-| (for reference) merged vs the unmodified base, pure text | 3.2e-4 – 7.8e-4 |
-
-**Throughput** (A100, 0.8B, teacher-forced replay of 32 vectors per weight load, TPU layers only, `results/a100/sweep2.jsonl`). Tokens/s, batch 16 unless noted:
-
-| array | tok/s | MACs/s |
-|---|---|---|
-| 8×8 | 487k | 1.7M |
-| 8×8 `g2h2` | 398k | **2.5M** |
-| 16×16 u3s2 | 476k | **3.0M** |
-| 16×16 u4s4 | 211k | 1.3M |
-| 32×32 u3s3 | 155k (batch 1) | 1.7M |
-
----
+The suite is 10 tests per (model, array) for the runs in the table (an 11th, restore on the full network, was added afterwards and passes on the A100, 0.8B 8×8): exact inside Qwen · exact after text · pure-text KL · text after a chip run · every trace length (up to 320 tokens, the lengths that broke the L4) · mutation test (zero the TPU layers and answers must break) ·
+real 2-layer MLPs · chip-only path bit-identical · CUDA-graph executor bit-identical · restore invisible. Replay compares every predicted token with NumPy (`bench.py`).
+The T4 passes all 0.8B runs and the three smallest 2B ones, then runs out of its 16 GB; it has suites only, no replay. Raw logs for every machine are in [`results/`](results/).
 
 ## 🚀 Quickstart
 
@@ -306,12 +138,13 @@ with s.chip():                                         # the TPU, in the same mo
 
 ## ⚠️ Limits, honestly
 
-- **Depth is the price of width.** Wide operands cost chip layers (16×16 u5s5 is 10; 64×64 is 12) and packing costs layers and vocabulary. Only `g2h2` on 8×8 was a clear win.
-- **No fused kernel.** The CUDA-graph executor removes launch overhead, not the cost of the HF kernels themselves. A purpose-built fused executor (as Qwenputer has) could go further.
-- **Teacher-forced numbers are prefill throughput.** A matvec's tokens don't depend on each other, so they batch; only the hop between layers waits. The free-running table is the honest "chained" number.
-- **Memory:** the old 24 GB OOM is fixed (the base model is rebuilt on demand, so every 2B suite fits on the 24 GB A10G and L4 and on 16 GB hosts). A 16 GB T4 still runs out of VRAM on the larger 2B arrays (16×16 u5s5 and the 32×32 ones). 4B has been run on the A100 and the Xeon; not on the 24 GB cards.
-- **Coverage is what `results/` says.** Every machine claimed here has raw logs there. An earlier L40S, Graviton3 and Apple-silicon run was lost in a crash and is not claimed.
-- Text-only checkpoints. Inference only (no backprop, unlike TinyTPU). Merged checkpoints are built on the fly, not uploaded.
+- **Depth is the price of width.** Wide operands cost chip layers (16×16 u5s5 is 10) and packing costs layers and vocabulary; only `g2h2` on 8×8 was a clear win.
+- **No fused kernel.** CUDA graphs remove launch overhead, not the cost of the HF kernels. A purpose-built executor could go further.
+- **Teacher-forced numbers are prefill throughput.** The free-running figure is the honest chained number.
+- **Memory:** a 16 GB T4 runs out of VRAM on the larger 2B arrays. 4B was run on the A100 and the Xeon, not on the 24 GB cards.
+- **Coverage is what `results/` says.** An earlier L40S, Graviton3 and Apple-silicon run was lost in a crash and is not claimed.
+- **The split-K guard is a process-wide torch flag** set by `merge.instantiate`. A saved checkpoint loaded with plain HF does not get it: set `torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = False` yourself.
+- Text-only checkpoints, inference only (no backprop, unlike TinyTPU). Merged checkpoints are built on the fly, not uploaded.
 
 ## 🙏 Credits
 

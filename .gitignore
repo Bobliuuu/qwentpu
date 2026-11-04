@@ -1,3 +1,6 @@
 __pycache__/
 .pytest_cache/
 *.pyc
+social/video/node_modules/
+social/video/out/
+social/video/render.log

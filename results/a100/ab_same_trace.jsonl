@@ -1,0 +1,2 @@
+{"array": "8x8 u3s3", "model": "q08", "device": "cuda", "batch": 1, "vectors": 32, "hidden": 1280, "layers": 26, "positions": 1728, "mismatches": 0, "path": "tpu-layers", "mid_range_outputs": 150, "tokens": 1728, "tok_per_s": 74462.0, "macs_per_s": 264754}
+{"array": "8x8 u3s3", "model": "q08", "device": "cuda", "batch": 1, "vectors": 32, "hidden": 1280, "layers": 26, "positions": 1728, "mismatches": 0, "path": "full", "mid_range_outputs": 150, "tokens": 1728, "tok_per_s": 6628.6, "macs_per_s": 23569}

@@ -1,0 +1,263 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>qwenTPU demo</title>
+<style>
+:root{--bg:#fbfbfd;--panel:#fff;--line:#c9cde3;--ink:#1b2040;--mut:#5a6285;--pu:#6246ea;--pul:#ece8ff;--te:#0f9e8a;--tel:#dcf5f0;--am:#c97a0a;--aml:#fff0d6;--pk:#d1385c;--pkl:#ffe3ea}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);color:var(--ink);font-family:"Helvetica Neue",Helvetica,Arial,"Liberation Sans",sans-serif}
+.mono{font-family:Menlo,"SF Mono",Monaco,"DejaVu Sans Mono",monospace}
+#stage{position:absolute;inset:0;width:1920px;height:1080px;overflow:hidden}
+.scene{position:absolute;inset:0;display:none}
+.bgdots{position:absolute;inset:0;background-image:radial-gradient(#dfe2f1 1.5px,transparent 1.6px);background-size:40px 40px}
+#hdr{position:absolute;left:0;top:0;width:1920px;height:84px;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 48px;gap:28px;background:#fff}
+#hdr .tag{background:var(--pu);color:#fff;font-weight:800;letter-spacing:.12em;padding:8px 18px;font-size:28px;border-radius:6px}
+#hdr .mid{font-size:26px;color:var(--mut);letter-spacing:.04em}
+#hdr .sp{flex:1}
+#hdr .lbl{font-size:26px;color:var(--pu);letter-spacing:.14em;font-weight:700}
+#hdr .clk{font-size:28px;color:var(--ink);width:170px;text-align:right}
+#cap{position:absolute;left:0;right:0;bottom:50px;display:flex;justify-content:center;pointer-events:none}
+#cap span{background:rgba(27,32,64,.94);color:#fff;padding:16px 34px;font-size:40px;font-weight:600;line-height:1.25;max-width:1700px;text-align:center;border-radius:10px}
+.abs{position:absolute}
+.card{background:var(--panel);border:2px solid var(--line);border-radius:18px}
+svg text{font-family:"Helvetica Neue",Helvetica,Arial,"Liberation Sans",sans-serif}
+</style></head>
+<body>
+<div id="stage">
+ <div id="scenes"></div>
+ <div id="hdr"><div class="tag">qwenTPU</div><div class="mid">A TPU in the weights of Qwen3.5</div><div class="sp"></div><div class="lbl" id="hl"></div><div class="clk mono" id="hc"></div></div>
+ <div id="cap"><span id="capt" style="display:none"></span></div>
+</div>
+<script>
+let D=null, SC=[];
+const $=s=>document.querySelector(s);
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const prog=(t,a,b)=>clamp((t-a)/(b-a));
+const eo=x=>1-Math.pow(1-x,3);
+const lerp=(a,b,x)=>a+(b-a)*x;
+const comma=(n,d=0)=>Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const C={pu:'#6246ea',pul:'#ece8ff',te:'#0f9e8a',tel:'#dcf5f0',am:'#c97a0a',aml:'#fff0d6',pk:'#d1385c',pkl:'#ffe3ea',mut:'#5a6285',line:'#c9cde3',ink:'#1b2040'};
+const v=o=>o.value;
+const S={};
+const BG='<div class="bgdots"></div>';
+
+/* 1 title */
+S.title=(el,t)=>{
+ const a=eo(prog(t,.1,1)),b=eo(prog(t,1.2,2.2)),c=eo(prog(t,2.6,3.6));
+ el.innerHTML=BG+`
+ <div class="abs" style="left:0;right:0;top:215px;text-align:center;opacity:${a};transform:translateY(${(1-a)*24}px);font-size:86px;font-weight:800;letter-spacing:-.01em">Airplanes don't flap their wings.</div>
+ <div class="abs" style="left:0;right:0;top:335px;text-align:center;opacity:${b};transform:translateY(${(1-b)*24}px);font-size:86px;font-weight:800;color:${C.pu};letter-spacing:-.01em">This TPU doesn't have a chip.</div>
+ <div class="abs" style="left:0;right:0;top:520px;text-align:center;opacity:${c};font-size:38px;line-height:1.45;color:${C.mut}">A weight-stationary matrix-multiply array, compiled into the weights of a stock <b style="color:${C.ink}">Qwen3.5</b>.<br>It is a language model that learned to do matrix multiplication, without learning anything.</div>
+ <div class="abs" style="left:0;right:0;top:700px;display:flex;justify-content:center;gap:30px;opacity:${c}">
+  ${[['NO TRAINING',C.pu,C.pul],['EXACT INTEGER ARITHMETIC',C.te,C.tel],['UP TO '+comma(v(D.max_array.macs))+' MACs PER MATVEC',C.am,C.aml]].map(([n,col,bg])=>`<div style="border:2px solid ${col};background:${bg};color:${col};padding:14px 34px;font-size:28px;letter-spacing:.1em;font-weight:700;border-radius:12px">${n}</div>`).join('')}
+ </div>`;
+};
+
+/* 2 idea */
+S.idea=(el,t)=>{
+ const rows=[['a one-hot write replaces row i exactly','store a weight row or a partial sum'],
+  ['a one-hot read returns row i','feed row i of the weights to the multipliers'],
+  ['a multi-hot read returns the exact sum of the chosen rows','the adder tree: a whole reduction in one read'],
+  ['the sampled token is fed back in','layer n\'s output is layer n+1\'s input']];
+ let h=`<div class="abs" style="left:110px;top:120px;width:760px;font-size:30px;letter-spacing:.12em;font-weight:700;color:${C.pu}">GATED DELTANET DOES</div>
+ <div class="abs" style="left:1010px;top:120px;width:800px;font-size:30px;letter-spacing:.12em;font-weight:700;color:${C.te}">WHICH, FOR A TPU, IS</div>`;
+ rows.forEach((r,i)=>{
+  const a=eo(prog(t,.4+i*.9,1.2+i*.9)),hl=i===2?1:0,y=190+i*160;
+  h+=`<div class="abs card" style="left:110px;top:${y}px;width:790px;height:126px;opacity:${a};transform:translateX(${(1-a)*-40}px);border-color:${C.pu};background:${C.pul};display:flex;align-items:center;padding:0 32px;font-size:34px;font-weight:600;line-height:1.2">${r[0]}</div>
+  <div class="abs" style="left:915px;top:${y+32}px;opacity:${a};font-size:54px;color:${C.mut}">&rarr;</div>
+  <div class="abs card" style="left:1000px;top:${y}px;width:810px;height:126px;opacity:${a};transform:translateX(${(1-a)*40}px);border-color:${hl?C.te:C.line};background:${hl?C.tel:'#fff'};border-width:${hl?4:2}px;display:flex;align-items:center;padding:0 32px;font-size:34px;font-weight:${hl?800:600};line-height:1.2">${r[1]}</div>`});
+ const e=eo(prog(t,5,6));
+ h+=`<div class="abs" style="left:110px;top:830px;width:1720px;opacity:${e};font-size:30px;line-height:1.4;color:${C.mut}">Weights live in <b style="color:${C.ink}">state</b> &middot; activations arrive as <b style="color:${C.ink}">tokens</b> &middot; the reduction is <b style="color:${C.ink}">one head read</b> &middot; the answer is <b style="color:${C.ink}">sampled as the next token</b></div>`;
+ el.innerHTML=BG+h;
+};
+
+/* 3 matvec */
+const W=[[2,-1,3,0],[1,3,-2,1],[-3,2,1,2],[3,0,1,-1]], A=[3,1,2,2];
+const colSum=(c,upto)=>{let s=0;for(let r=0;r<=upto;r++)s+=A[r]*W[r][c];return s};
+const OUT=[0,1,2,3].map(c=>Math.max(0,Math.min(7,colSum(c,3))));
+S.matvec=(el,t)=>{
+ const gx=430,gy=270,cw=130,ch=108;
+ const loadN=16, loadT=prog(t,.2,3.6), loaded=Math.floor(loadT*loadN+(.999)*(loadT>=1?1:0));
+ const rowT=prog(t,4,8), rowsDone=Math.floor(rowT*4+(rowT>=1?0.001:0)); // 0..4
+ const activeRow=t>=4&&t<8.3?Math.min(3,Math.floor(prog(t,4,8)*4)):-1;
+ const accRows=t<4?-1:Math.min(3,Math.floor(prog(t,4,8.2)*4));
+ const readT=prog(t,8.6,12.4), readCol=t>=8.6?Math.min(3,Math.floor(readT*4)):-1;
+ const readDone=t>=8.6?Math.floor(readT*4+(readT>=1?.001:0)):0; // columns finished
+ let s='';
+ // title/phase
+ const ph=t<3.8?0:t<8.3?1:t<12.5?2:3;
+ const phn=['LOAD WEIGHTS','STREAM ACTIVATIONS','READ','OUTPUT = NEXT INPUT'][ph], phc=[C.pu,C.am,C.te,C.pk][ph];
+ s+=`<text x="${gx}" y="150" font-size="38" font-weight="800" letter-spacing="3" fill="${phc}">${phn}</text>
+ <text x="${gx}" y="190" font-size="25" fill="${C.mut}">4x4 illustration of an array (the real ones: 8x8 up to 32x32)</text>`;
+ // column headers
+ for(let c=0;c<4;c++)s+=`<text x="${gx+c*cw+cw/2-5}" y="${gy-16}" font-size="24" text-anchor="middle" fill="${C.mut}">col ${c}</text>`;
+ // activation inputs
+ for(let r=0;r<4;r++){
+  const on=activeRow===r, seen=t>=4&&r<=accRows, ax=gx-150;
+  const col=on?C.am:(seen?C.am:C.line);
+  s+=`<g opacity="${t<3.8?.0:1}"><rect x="${ax}" y="${gy+r*ch+18}" width="110" height="${ch-36}" rx="12" fill="${on?C.aml:'#fff'}" stroke="${col}" stroke-width="${on?4:2}"/>
+   <text x="${ax+55}" y="${gy+r*ch+ch/2+12}" font-size="34" font-weight="700" text-anchor="middle" fill="${seen?C.am:C.mut}">a=${A[r]}</text>
+   ${on?`<path d="M${ax+112} ${gy+r*ch+ch/2} L${gx-6} ${gy+r*ch+ch/2}" stroke="${C.am}" stroke-width="5" marker-end="url(#arA)"/>`:''}</g>`;
+ }
+ s+=`<defs><marker id="arA" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0L8 4L0 8z" fill="${C.am}"/></marker></defs>`;
+ // cells
+ for(let r=0;r<4;r++)for(let c=0;c<4;c++){
+  const idx=r*4+c, isLoaded=idx<loaded, justNow=idx===loaded-1&&t<3.9;
+  const rowOn=activeRow===r, colOn=readCol===c&&t<12.5&&t>=8.6;
+  let fill=isLoaded?'#fff':'#f1f2fa', stroke=C.line;
+  if(isLoaded)stroke=C.pu;
+  if(justNow){fill=C.pul}
+  if(rowOn){fill=C.aml;stroke=C.am}
+  if(colOn){fill=C.tel;stroke=C.te}
+  s+=`<rect x="${gx+c*cw+4}" y="${gy+r*ch+4}" width="${cw-8}" height="${ch-8}" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="${rowOn||colOn||justNow?4:2}"/>`;
+  if(isLoaded)s+=`<text x="${gx+c*cw+cw/2}" y="${gy+r*ch+ch/2+13}" font-size="38" font-weight="700" text-anchor="middle" fill="${C.pu}">${W[r][c]}</text>`;
+ }
+ // partial sums beneath
+ const py=gy+4*ch+20;
+ s+=`<text x="${gx-150}" y="${py+52}" font-size="23" fill="${C.mut}">partial sums</text>`;
+ for(let c=0;c<4;c++){
+  const val=accRows>=0?colSum(c,accRows):null;
+  const hot=readCol===c&&t<12.5&&t>=8.6;
+  s+=`<rect x="${gx+c*cw+4}" y="${py}" width="${cw-8}" height="70" rx="10" fill="${hot?C.tel:'#fff'}" stroke="${hot?C.te:(val!==null?C.am:C.line)}" stroke-width="${hot?4:2}"/>`;
+  if(val!==null)s+=`<text x="${gx+c*cw+cw/2}" y="${py+48}" font-size="36" font-weight="700" text-anchor="middle" fill="${hot?C.te:C.am}">${val}</text>`;
+ }
+ // multi-hot bracket on read
+ if(readCol>=0&&t<12.6){const x=gx+readCol*cw+cw/2;
+  s+=`<path d="M${x-cw/2+12} ${gy-4} L${x-cw/2+12} ${gy-4}" /><text x="${x}" y="${py+112}" font-size="26" font-weight="700" text-anchor="middle" fill="${C.te}">all 4 rows read at once</text>`;}
+ // output row
+ const oy=py+130;
+ if(t>=8.6){
+  s+=`<text x="${gx-150}" y="${oy+50}" font-size="23" fill="${C.mut}">output</text>`;
+  for(let c=0;c<4;c++){ if(c<readDone||t>=12.4){
+   const sat=colSum(c,3)>7;
+   s+=`<rect x="${gx+c*cw+4}" y="${oy}" width="${cw-8}" height="70" rx="10" fill="${C.pkl}" stroke="${C.pk}" stroke-width="3"/>
+   <text x="${gx+c*cw+cw/2}" y="${oy+48}" font-size="36" font-weight="800" text-anchor="middle" fill="${C.pk}">${OUT[c]}</text>`;}}
+ }
+ // right panel: current token
+ let tok='',tokSub='';
+ if(ph===0){const i=Math.max(0,Math.min(15,loaded-1));tok=`CELL(${Math.floor(i/4)},${i%4},${W[Math.floor(i/4)][i%4]})`;tokSub='one token writes one weight into DeltaNet state'}
+ else if(ph===1){tok=`ACT(${Math.max(0,activeRow)}; ${A[Math.max(0,activeRow)]})`;tokSub='the AND of activation bits with the weight rows lands in accumulator state'}
+ else if(ph===2){tok=`READ(${Math.max(0,readCol)})`;tokSub='multi-hot read: the exact sum of the chosen rows, via the adder tree'}
+ else {tok=`OUT(${OUT.join(', ')})`;tokSub='the model\'s own sampled token'}
+ const px=1130;
+ let r=`<div class="abs card" style="left:${px}px;top:150px;width:690px;height:250px;padding:28px 34px;border-color:${phc}"><div style="font-size:24px;letter-spacing:.14em;color:${C.mut};font-weight:700">TOKEN THE MODEL SEES</div>
+ <div class="mono" style="font-size:54px;font-weight:700;color:${phc};margin-top:26px">${tok}</div>
+ <div style="font-size:26px;color:${C.mut};margin-top:18px;line-height:1.3">${tokSub}</div></div>`;
+ // next-layer box in phase 3
+ const f=eo(prog(t,12.6,14));
+ r+=`<div class="abs card" style="left:${px}px;top:440px;width:690px;height:280px;padding:26px 34px;opacity:${.0+Math.max(f,ph===3?f:0)};border-color:${C.pk}">
+  <div style="font-size:24px;letter-spacing:.14em;color:${C.pk};font-weight:700">LAYER n+1 INPUT</div>
+  <div class="mono" style="font-size:44px;font-weight:700;margin-top:22px">in = (${OUT.join(', ')})</div>
+  <div style="font-size:26px;color:${C.mut};margin-top:18px;line-height:1.35">The host does no arithmetic: it relabels one output token as the next input.</div></div>`;
+ r+=`<div class="abs" style="left:${px}px;top:760px;width:690px;font-size:26px;color:${C.mut};line-height:1.4">An 8x8 array: <b style="color:${C.ink}">${v(D.array8.tokens)} tokens</b> per matvec, <b style="color:${C.ink}">${v(D.array8.macs)} MACs</b>, ${v(D.array8.macs_per_token)} MACs per token. Output clamps to 3 bits (11 &rarr; 7).</div>`;
+ el.innerHTML=BG+`<svg class="abs" style="left:0;top:0" width="1920" height="1080">${s}</svg>`+r;
+};
+
+/* 4 adder */
+S.adder=(el,t)=>{
+ let h='';
+ const steps=[['top digit','u = 1'],['2u + digit','u = 3'],['2u + digit','u = 8'],['clamp to 7','u = 7']];
+ h+=`<div class="abs" style="left:110px;top:120px;font-size:30px;letter-spacing:.12em;font-weight:700;color:${C.pu}">FOLD TOP-DOWN, SATURATING AS WE GO</div>
+ <div class="abs mono" style="left:110px;top:176px;font-size:40px;font-weight:700">u &larr; clamp( 2<sup>q</sup>&middot;u + next digits )</div><div class="abs" style="left:110px;top:250px;font-size:24px;color:${C.mut}">illustrative example, range 0 to 7</div>`;
+ steps.forEach((s,i)=>{const a=eo(prog(t,.5+i*.8,1.3+i*.8)),last=i===3;
+  h+=`<div class="abs card" style="left:${110+i*215}px;top:300px;width:190px;height:200px;opacity:${a};transform:translateY(${(1-a)*20}px);text-align:center;padding-top:30px;border-color:${last?C.pk:C.line};background:${last?C.pkl:'#fff'}">
+   <div style="font-size:24px;color:${C.mut}">${s[0]}</div><div class="mono" style="font-size:44px;font-weight:700;margin-top:24px;color:${last?C.pk:C.pu}">${s[1]}</div></div>`;
+  if(i<3)h+=`<div class="abs" style="left:${300+i*215}px;top:372px;width:25px;font-size:40px;color:${C.mut};opacity:${a}">&rsaquo;</div>`});
+ const b=eo(prog(t,4,5));
+ h+=`<div class="abs" style="left:110px;top:540px;width:900px;opacity:${b};font-size:32px;line-height:1.4">Once <b>u</b> is past the value the remaining digits could ever undo, the answer is already pinned at 0 or max. Saturating early is <b style="color:${C.te}">lossless</b>.</div>
+ <div class="abs card mono" style="left:110px;top:720px;width:900px;opacity:${b};padding:24px 30px;font-size:30px;line-height:1.5">clamp(Z) = Z + relu(lo &minus; Z) &minus; relu(Z &minus; hi)<div style="font-size:24px;color:${C.mut};font-family:Helvetica,Arial,sans-serif;margin-top:8px">two SwiGLU units per clamp; wide ranges run several lossless passes</div></div>`;
+ // layers bars
+ h+=`<div class="abs" style="left:1130px;top:120px;font-size:30px;letter-spacing:.12em;font-weight:700;color:${C.te}">CHIP LAYERS, 8x8 ARRAY</div>`;
+ D.layers.forEach((L,i)=>{const a=eo(prog(t,1.5+i*.9,2.6+i*.9)),n=v(L.chip),max=7;
+  h+=`<div class="abs" style="left:1130px;top:${210+i*150}px;font-size:34px;font-weight:700;width:150px;padding-top:18px">${L.label}</div>
+  <div class="abs" style="left:1280px;top:${210+i*150}px;width:${a*n/max*430}px;height:84px;background:${[C.te,C.pu,C.pk][i]};border-radius:12px"></div>
+  <div class="abs mono" style="left:${1290+a*n/max*430}px;top:${222+i*150}px;font-size:48px;font-weight:800;opacity:${a}">${n}</div>`});
+ h+=`<div class="abs" style="left:1130px;top:690px;width:700px;font-size:26px;color:${C.mut};line-height:1.4;opacity:${b}">Wider operands cost depth, not exactness. Layer counts are the merged model's layers minus Qwen's 24.</div>`;
+ el.innerHTML=BG+h;
+};
+
+/* 5 exact */
+S.exact=(el,t)=>{
+ let h=`<div class="abs" style="left:0;right:0;top:112px;text-align:center;font-size:34px;color:${C.mut}">Same suite, same replay against NumPy, on every machine we could get</div>`;
+ const hw=D.hardware, cw=330, gap=20, x0=(1920-(5*cw+4*gap))/2;
+ hw.forEach((d,i)=>{
+  const a=eo(prog(t,.3+i*.5,1.1+i*.5)), t4=d.id==='t4';
+  const cnt=t4?0:Math.round(v(d.positions)*eo(prog(t,.6+i*.5,2.6+i*.5)));
+  const col=t4?C.am:C.te;
+  h+=`<div class="abs card" style="left:${x0+i*(cw+gap)}px;top:${190+(1-a)*30}px;width:${cw}px;height:560px;opacity:${a};border-color:${col};border-width:3px;padding:26px 24px">
+   <div style="font-size:38px;font-weight:800">${d.label}</div>
+   <div style="font-size:24px;color:${C.mut};margin-top:6px">${d.arch}</div>
+   <div style="font-size:22px;color:${C.mut};margin-top:2px">models ${d.models}</div>
+   ${t4?`<div style="font-size:30px;font-weight:800;color:${C.am};margin-top:44px;letter-spacing:.08em">SUITES ONLY</div><div style="font-size:26px;color:${C.mut};margin-top:12px;line-height:1.35">no replay run. The bigger 2B arrays ran out of its 16 GB.</div>`
+   :`<div class="mono" style="font-size:52px;font-weight:800;margin-top:44px">${comma(cnt)}</div><div style="font-size:24px;color:${C.mut}">positions replayed</div>
+   <div style="font-size:24px;color:${C.mut};margin-top:8px">${v(d.arrays)} arrays</div>
+   <div class="mono" style="font-size:46px;font-weight:800;color:${C.te};margin-top:26px">0</div><div style="font-size:24px;color:${C.te};font-weight:700">mismatches</div>`}
+   <div style="position:absolute;left:24px;right:24px;bottom:26px;border-top:2px solid ${C.line};padding-top:16px"><span class="mono" style="font-size:44px;font-weight:800;color:${col}">${v(d.clean)}/${v(d.total)}</span><span style="font-size:24px;color:${C.mut}"> suite runs clean</span></div></div>`});
+ const f=eo(prog(t,3.4,4.4));
+ h+=`<div class="abs" style="left:0;right:0;top:785px;text-align:center;opacity:${f};font-size:44px;font-weight:700"><span class="mono" style="color:${C.te}">${comma(v(D.total_outputs))}</span> outputs checked &middot; <span style="color:${C.te}">0 mismatches</span> &middot; A100, A10G, L4, Xeon</div>`;
+ el.innerHTML=BG+h;
+};
+
+/* 6 speed */
+S.speed=(el,t)=>{
+ const cp=D.chip_path, a1=eo(prog(t,.4,2)), a2=eo(prog(t,.9,2.8));
+ const maxTok=v(cp.tpu_only);
+ let h=`<div class="abs" style="left:100px;top:112px;font-size:30px;letter-spacing:.12em;font-weight:700;color:${C.pu}">BATCH-1 TOKENS PER SECOND</div>
+ <div class="abs" style="left:100px;top:160px;font-size:26px;color:${C.mut}">A100, Qwen3.5-0.8B, 8x8 array</div>
+ <div class="abs" style="left:100px;top:240px;font-size:28px;font-weight:600">Full network</div>
+ <div class="abs" style="left:100px;top:290px;width:${a1*v(cp.full)/maxTok*760}px;height:70px;background:${C.line};border-radius:10px"></div>
+ <div class="abs mono" style="left:${110+a1*v(cp.full)/maxTok*760}px;top:296px;font-size:40px;font-weight:700;opacity:${a1}">${comma(Math.round(v(cp.full)*a1))}</div>
+ <div class="abs" style="left:100px;top:400px;font-size:28px;font-weight:600">TPU layers only (skip Qwen's idle layers)</div>
+ <div class="abs" style="left:100px;top:450px;width:${a2*760}px;height:70px;background:${C.pu};border-radius:10px"></div>
+ <div class="abs mono" style="left:${110+a2*760}px;top:456px;font-size:40px;font-weight:700;opacity:${a2}">${comma(Math.round(v(cp.tpu_only)*a2))}</div>
+ <div class="abs" style="left:100px;top:570px;font-size:120px;font-weight:900;color:${C.pu};opacity:${eo(prog(t,2.2,3.2))}">${v(cp.speedup)}x</div>
+ <div class="abs" style="left:400px;top:622px;font-size:30px;color:${C.mut};opacity:${eo(prog(t,2.2,3.2))};line-height:1.3">bit-identical output,<br>and Qwen's cache is never touched</div>`;
+ const b=prog(t,4.6,5.6);
+ h+=`<div class="abs" style="left:1060px;top:112px;font-size:30px;letter-spacing:.12em;font-weight:700;color:${C.te};opacity:${eo(b)}">FREE-RUNNING, CHAINED, CUDA GRAPHS</div>
+ <div class="abs mono" style="left:1060px;top:170px;font-size:140px;font-weight:900;color:${C.te};opacity:${eo(b)};line-height:1">${comma(Math.round(v(D.graphs[0].v)*eo(prog(t,4.8,6.6))))}</div>
+ <div class="abs" style="left:1060px;top:318px;font-size:34px;font-weight:700;opacity:${eo(b)}">matvec per second on an A100 (8x8)</div>`;
+ D.graphs.forEach((g,i)=>{const a=eo(prog(t,5.6+i*.4,6.6+i*.4)),w=v(g.v)/v(D.graphs[0].v)*480;
+  h+=`<div class="abs" style="left:1060px;top:${400+i*66}px;width:190px;font-size:26px;font-weight:600;padding-top:12px">${g.array}</div>
+  <div class="abs" style="left:1260px;top:${402+i*66}px;width:${a*w}px;height:46px;background:${i===0?C.te:'#a6e0d6'};border-radius:8px"></div>
+  <div class="abs mono" style="left:${1270+a*w}px;top:${406+i*66}px;font-size:28px;font-weight:700;opacity:${a}">${comma(v(g.v))}</div>`});
+ h+=`<div class="abs" style="left:100px;top:790px;width:1720px;font-size:22px;color:${C.mut};line-height:1.4;opacity:${eo(prog(t,3,4))}">Both batch-1 rows replay the same trace (1,728 positions, 32 vectors per weight load). The free-running chain is not comparable to batched replay, and no eager baseline for it was saved, so no speedup is claimed for it.</div>`;
+ el.innerHTML=BG+h;
+};
+
+/* 7 honest */
+S.honest=(el,t)=>{
+ const col=(x,title,color,bg,items,t0)=>{const a=eo(prog(t,t0,t0+.9));
+  return `<div class="abs card" style="left:${x}px;top:150px;width:840px;height:560px;opacity:${a};transform:translateY(${(1-a)*24}px);border-color:${color};border-width:3px;padding:34px 40px">
+  <div style="font-size:34px;font-weight:800;letter-spacing:.1em;color:${color};margin-bottom:22px">${title}</div>
+  ${items.map(i=>`<div style="font-size:31px;line-height:1.35;margin-bottom:18px;padding-left:26px;position:relative"><span style="position:absolute;left:0;color:${color}">&bull;</span>${i}</div>`).join('')}</div>`};
+ el.innerHTML=BG+
+ col(100,'NOT NEW',C.mut,'#fff',['Putting a machine into Qwen3.5\'s weights: Qwenputer (RISC-V CPU), QwenPU (vector unit), qwenGPU (SIMT GPU).','Running a neural net on one.','The design vocabulary: DeltaNet rows as RAM, tokens as the trace.'],.3)+
+ col(980,'NEW, TO OUR KNOWLEDGE',C.pu,C.pul,['The architecture: a weight-stationary array.','No program counter, no instruction stream: the layer stack is the datapath.','One multi-hot read is the whole reduction.','Not faster than QwenPU at the op level, and packing is not a free lunch.'],1.3);
+};
+
+/* 8 end */
+S.end=(el,t)=>{
+ const a=eo(prog(t,.1,1)),b=eo(prog(t,.9,1.9)),c=eo(prog(t,1.6,2.6));
+ el.innerHTML=BG+`
+ <div class="abs" style="left:0;right:0;top:170px;text-align:center;opacity:${a};font-size:110px;font-weight:900;letter-spacing:-.01em">qwen<span style="color:${C.pu}">TPU</span></div>
+ <div class="abs" style="left:0;right:0;top:320px;text-align:center;opacity:${a};font-size:38px;color:${C.mut}">It was sitting there the whole time.</div>
+ <div class="abs card" style="left:260px;top:470px;width:1400px;height:130px;opacity:${b};display:flex;align-items:center;justify-content:center;gap:30px;border-color:${C.pu};border-width:3px"><span style="font-size:26px;letter-spacing:.14em;color:${C.mut};font-weight:700">CODE</span><span class="mono" style="font-size:50px;font-weight:700;color:${C.pu}">github.com/Bobliuuu/qwentpu</span></div>
+ <div class="abs card" style="left:260px;top:640px;width:1400px;height:130px;opacity:${c};display:flex;align-items:center;justify-content:center;gap:30px;border-color:${C.te};border-width:3px"><span style="font-size:26px;letter-spacing:.14em;color:${C.mut};font-weight:700">LIVE DEMO</span><span class="mono" style="font-size:42px;font-weight:700;color:${C.te}">bobliuuu.github.io/qwentpu/</span></div>`;
+};
+
+/* timeline */
+function buildTimeline(){let t=0;SC=D.scenes.map(s=>{const o={...s,start:t};t+=s.dur;o.el=document.createElement('div');o.el.className='scene';$('#scenes').appendChild(o.el);return o});window.TOTAL=t}
+function showScene(sc,lt,opts){
+ SC.forEach(s=>s.el.style.display=s===sc?'block':'none');
+ const d=sc.dur, fi=prog(lt,0,.3), fo=1-prog(lt,d-.3,d); sc.el.style.opacity=Math.min(fi,fo);
+ S[sc.id](sc.el,lt,d);
+ $('#hl').textContent=sc.label; const tt=sc.start+lt;
+ $('#hc').textContent=String(Math.floor(tt/60)).padStart(2,'0')+':'+(tt%60).toFixed(1).padStart(4,'0');
+ const cap=(sc.captions||[]).find(c=>lt>=c[0]&&lt<c[1]);const ce=$('#capt');
+ if(cap){ce.style.display='';ce.textContent=cap[2];ce.style.opacity=Math.min(prog(lt,cap[0],cap[0]+.25),1-prog(lt,cap[1]-.2,cap[1]))}else ce.style.display='none';
+}
+window.renderScene=(id,lt)=>{showScene(SC.find(s=>s.id===id),lt)};
+window.renderGlobal=(t)=>{let sc=SC[SC.length-1];for(const s of SC){if(t<s.start+s.dur){sc=s;break}}showScene(sc,Math.min(t-sc.start,sc.dur-1e-3))};
+window.getInfo=()=>({scenes:SC.map(s=>({id:s.id,dur:s.dur,start:s.start})),total:window.TOTAL,fps:D.meta.fps});
+window.init=async(data)=>{D=data||await (await fetch('data.json')).json();buildTimeline();renderGlobal(0);window.READY=true};
+if(window.__DATA)init(window.__DATA);else init().catch(e=>{document.body.textContent=String(e)});
+</script>
+</body></html>

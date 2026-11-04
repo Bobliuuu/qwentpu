@@ -390,10 +390,10 @@ window.RESULTS = {
  "chip_path": {
   "model": "0.8B",
   "array": "8×8",
-  "b1_full": 1997,
-  "b1_chip": 24030,
+  "b1_full": 6629,
+  "b1_chip": 74462,
   "b16_full": 33074,
   "b16_chip": 125208,
-  "source": "A100: results/a100/final.jsonl (full) and sweep.jsonl (tpu-layers)"
+  "source": "A100 same trace, 1728 positions: results/a100/ab_same_trace.jsonl (b16 values from final.jsonl / sweep.jsonl, different traces)"
  }
 };
