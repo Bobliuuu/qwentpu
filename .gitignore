@@ -4,3 +4,6 @@ __pycache__/
 social/video/node_modules/
 social/video/out/
 social/video/render.log
+social/anim/out/chk/
+social/anim/out/stills/
+social/anim/out/chk2/

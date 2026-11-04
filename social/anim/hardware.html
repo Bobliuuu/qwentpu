@@ -1,0 +1,51 @@
+<!doctype html><html><head><meta charset="utf-8"><title>the hardware wall</title><style>html,body{margin:0;background:#090c19}canvas{display:block}</style></head><body><canvas id="c"></canvas>
+<script src="lib.js"></script><script>
+// Numbers: results/hw.md. Positions replayed (token positions), mismatches, suite runs clean.
+const DEV=[{n:'A100 40GB',a:'Ampere sm80',m:'0.8B · 2B · 4B',pos:705024,arr:9,suite:'18/18',c:col.pu},
+ {n:'A10G 24GB',a:'Ampere sm86',m:'0.8B · 2B',pos:221184,arr:8,suite:'12/12',c:col.te},
+ {n:'L4 24GB',a:'Ada sm89',m:'0.8B · 2B',pos:190464,arr:8,suite:'12/12',c:col.am},
+ {n:'x86 Xeon (c6i)',a:'Ice Lake, CPU',m:'0.8B · 2B · 4B',pos:23040,arr:8,suite:'14/14',c:col.pk}];
+const TOTAL=1139712,T0=1.8,T1=10.2;
+const caps=[[.5,2.6,'“Exact on an A100” is a claim about an A100.'],[2.8,10.6,'Replay the same token positions on four machines. Count mismatches.'],[10.9,13.2,'1,139,712 positions. 0 mismatches.']];
+register(13.6,t=>{
+ header('4','THE HARDWARE WALL',t);
+ const a=eo(prog(t,.2,.9)),fr=eio(prog(t,T0,T1)),done=t>=T1;
+ // top counter
+ ctx.save();ctx.globalAlpha=a;
+ tx('REPLAYED TOKEN POSITIONS',80,170,{size:32,color:col.mut,ls:4});
+ tx(comma(TOTAL*fr),80,282,{size:100,mono:true,color:col.ink,glow:done?col.gr:null,gb:34});
+ tx('MISMATCHES',1840,170,{size:32,color:col.mut,ls:4,align:'right'});
+ const pulse=t>=T0?1-((t*3)%1):0;
+ tx('0',1840,282,{size:100,mono:true,align:'right',color:col.gr,glow:col.gr,gb:12+22*(done?1:pulse*.6)});
+ ctx.restore();
+ // cards
+ const CW=420,CG=36,CX0=(W-4*CW-3*CG)/2,CY=320,CH=580;
+ DEV.forEach((d,i)=>{
+  const x=CX0+i*(CW+CG),ap=eo(prog(t,.5+i*.15,1.2+i*.15));if(ap<=0)return;
+  const y=CY+(1-ap)*40;
+  ctx.save();ctx.globalAlpha=ap;
+  rr(x,y,CW,CH,22,'#0e1328',mix('#2b3566',d.c.length?d.c:'#fff',done?.7:.35),done?4:2.5);
+  tx(d.n,x+28,y+66,{size:44,color:d.c});
+  tx(d.a,x+28,y+108,{size:28,color:col.mut,weight:500});
+  tx('models '+d.m,x+28,y+144,{size:26,color:col.mut,weight:500});
+  // counter
+  const v=d.pos*fr;
+  tx(comma(v),x+CW-28,y+246,{size:62,align:'right',mono:true,color:col.ink});
+  tx('positions replayed',x+CW-28,y+288,{size:28,align:'right',color:col.mut,weight:500});
+  // dot matrix progress
+  const cols=24,rows=5,dw=(CW-56)/cols;
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const idx=(r*cols+c)/(cols*rows);const on=fr>idx;
+   const tf=on?clamp((fr-idx)*14,0,1):0;
+   ctx.fillStyle=on?rgba(d.c,.35+.65*(1-tf)*0+.4*tf+.25):'#1a2142';ctx.beginPath();ctx.roundRect(x+28+c*dw,y+316+r*26,dw-5,19,4);ctx.fill();
+   if(on&&tf<1){ctx.fillStyle=rgba('#ffffff',.5*(1-tf));ctx.beginPath();ctx.roundRect(x+28+c*dw,y+316+r*26,dw-5,19,4);ctx.fill()}}
+  // mismatch + suite
+  tx('mismatches',x+28,y+538,{size:28,color:col.mut,weight:500});
+  tx('0',x+CW-28,y+544,{size:64,align:'right',mono:true,color:col.gr,glow:col.gr,gb:14});
+  tx('arrays '+d.arr+'  ·  suite '+(done?d.suite:'...')+' clean',x+28,y+486,{size:26,color:done?col.ink:col.mut,weight:600});
+  ctx.restore()});
+ tx('T4 ran the test suites only (9/12, out of 16 GB on the larger 2B arrays), so it is not in the replay count.',W/2,938,{size:23,align:'center',color:col.mut,weight:500,alpha:eo(prog(t,3,3.8))});
+ const st=eob(prog(t,10.3,11));
+ if(st>0){ctx.save();ctx.translate(W/2,205);ctx.scale(st,st);ctx.restore()}
+ caption(caps,t);fadeEdges(t,13.6);
+});
+</script></body></html>

@@ -1,0 +1,91 @@
+<!doctype html><html><head><meta charset="utf-8"><title>adder tree</title><style>html,body{margin:0;background:#090c19}canvas{display:block}</style></head><body><canvas id="c"></canvas>
+<script src="lib.js"></script><script>
+// Adder tree: example 16x16 array, 4-bit act x 4-bit weights. Ranges are the compiler's real Horner plan (docs/adder-tree.svg); counts are example values.
+const CNT=[[1,1,0,0],[4,16,16,0],[16,16,16,0],[2,0,0,14]];   // cnt[j][b]
+const WT=[1,2,4,-8];
+const S=CNT.map(r=>r.reduce((s,c,b)=>s+c*WT[b],0));           // s_j
+const STEPS=[{j:3,zr:[-128,112],pw:[-98,112]},{j:2,zr:[-324,336],pw:[-84,100]},{j:1,zr:[-296,312],pw:[-56,72]},{j:0,zr:[-240,256],pw:null}];
+let u=null;STEPS.forEach((s,i)=>{s.zin=i?2*u:0;s.Z=i?s.zin+S[s.j]:S[s.j];s.u=s.pw?clamp(s.Z,s.pw[0],s.pw[1]):s.Z;s.hit=s.pw&&s.u!==s.Z;u=s.u});
+const caps=[[.6,4.4,'Count rows by activation bit and weight bit, in one multi-hot read.'],[4.8,7.8,'Weight the counts into digit sums. The full sum is too wide for bf16.'],[8,13.6,'Fold top-down. Clamp early: it is lossless.'],[14.2,16.6,'The code FFN thresholds the result; lm_head turns it into the token.']];
+const T0=7.4,DT=1.9;
+const GX=240,GY=250,CWd=120,CHt=54,STEP=64;
+register(17,t=>{
+ header('2','THE ADDER TREE',t);
+ // 1 counts
+ const a1=eo(prog(t,.3,1));
+ tx('1 · COUNT',80,160,{size:34,color:col.te,ls:4,alpha:a1});
+ tx('cnt[j][b] = rows with act bit j AND weight bit b',80,198,{size:26,color:col.mut,weight:500,alpha:a1});
+ for(let b=0;b<4;b++){tx('b='+b,GX+b*130+CWd/2,GY-14,{size:28,align:'center',color:col.mut,mono:true,alpha:a1});
+  const wa=eo(prog(t,4.6,5.2));tx((WT[b]>0?'x':'x')+WT[b],GX+b*130+CWd/2,GY+4*STEP+32,{size:30,align:'center',color:col.pu,mono:true,alpha:wa})}
+ tx('weight',GX-44,GY+4*STEP+32,{size:24,align:'right',color:col.pu,alpha:eo(prog(t,4.6,5.2)),weight:500});
+ for(let j=0;j<4;j++){
+  const y=GY+j*STEP;tx('j='+j,GX-24,y+CHt/2+10,{size:28,align:'right',color:col.mut,mono:true,alpha:a1});
+  for(let b=0;b<4;b++){
+   const p=eo(prog(t,1.2+j*.5+b*.1,2.6+j*.5+b*.1)),v=Math.round(CNT[j][b]*p);
+   const hot=1-prog(t,1.2+j*.5+b*.1+1.4,2.6+j*.5+b*.1+1.9);
+   const full=CNT[j][b]/16;
+   rr(GX+b*130,y,CWd,CHt,12,'#10152c',mix('#2b3566','#2fd9bb',p>0?.4+.6*hot*(p<1?1:0)+.0:0),2.5);
+   if(p>0){ctx.save();ctx.beginPath();ctx.roundRect(GX+b*130,y,CWd,CHt,12);ctx.clip();ctx.fillStyle=rgba(col.te,.22);ctx.fillRect(GX+b*130,y+CHt*(1-full*p),CWd,CHt*full*p);ctx.restore()}
+   tx(String(v),GX+b*130+CWd/2,y+CHt/2+13,{size:40,align:'center',mono:true,color:col.te,alpha:p>0?1:0});
+  }}
+ // 2 digit sums
+ const a2=eo(prog(t,4.4,5.2)),SX=800;
+ tx('2 · DIGIT SUMS',SX,160,{size:34,color:col.pu,ls:4,alpha:a2});
+ tx('s_j = Σ wt_b · cnt[j][b]',SX,198,{size:22,color:col.mut,weight:500,alpha:a2,mono:true});
+ const act=STEPS.findIndex((s,i)=>t>=T0+i*DT&&t<T0+(i+1)*DT);
+ for(let j=0;j<4;j++){const p=eo(prog(t,5.2+j*.45,6.0+j*.45)),y=GY+j*STEP;
+  const hi=act>=0&&STEPS[act].j===j;
+  if(p>0){ctx.save();ctx.globalAlpha=p;
+   line(GX+4*130-10,y+CHt/2,SX-8,y+CHt/2,rgba(col.pu,.5),3,[8,8]);
+   rr(SX,y,232,CHt,12,hi?rgba(col.pu,.28):'#10152c',hi?col.am:col.pu,hi?4:2.5);
+   tx('s'+j+' = '+S[j],SX+116,y+CHt/2+12,{size:36,align:'center',mono:true,color:hi?col.am:'#d9d3ff'});ctx.restore()}}
+ // explanatory panel right
+ const a3=eo(prog(t,5.8,6.6));
+ if(a3>0){ctx.save();ctx.globalAlpha=a3;rr(1180,GY-70,680,4*STEP+80,18,'#0e1328',col.line,2);
+  tx('y = Σ 2^j · s_j',1210,GY-6,{size:44,mono:true,color:col.ink});
+  tx('too wide: bf16 only compares',1210,GY+62,{size:34,color:col.mut,weight:600});tx('small integers exactly.',1210,GY+106,{size:34,color:col.mut,weight:600});
+  tx('So never form it.',1210,GY+168,{size:38,color:col.am});
+  tx('u ← clamp(2^q·u + next digits)',1210,GY+240,{size:30,mono:true,color:col.pu,alpha:eo(prog(t,6.4,7.2))});ctx.restore()}
+ // 3 Horner panels
+ const PW=420,PG=36,PY=625,PH=300,P0=(W-4*PW-3*PG)/2;
+ const a4=eo(prog(t,6.6,7.4));
+ tx('3 · HORNER FOLD, TOP DIGIT FIRST',P0,PY-22,{size:32,color:col.am,ls:3,alpha:a4});
+ STEPS.forEach((s,i)=>{
+  const x=P0+i*(PW+PG),ts=T0+i*DT,pa=eo(prog(t,ts-.4,ts+.1));
+  if(t<ts-.4)return;
+  const on=act===i;
+  ctx.save();ctx.globalAlpha=pa;
+  rr(x,PY,PW,PH,18,'#0e1328',on?col.am:col.line,on?3.5:2.5);
+  tx('step '+(i+1)+(i===3?' · last':''),x+22,PY+44,{size:32,color:on?col.am:col.mut,ls:2});
+  const expr=i?`Z = 2·(${STEPS[i-1].u}) + ${S[s.j]}`:`Z = s3 = ${S[3]}`;
+  tx(expr,x+22,PY+92,{size:32,mono:true,color:col.ink});
+  // number line
+  const lx=x+30,lw=PW-60,ly=PY+215,[z0,z1]=s.zr,M=v=>lx+(v-z0)/(z1-z0)*lw;
+  line(lx,ly,lx+lw,ly,'#3a4580',6);
+  tx(String(z0),lx,ly+44,{size:24,mono:true,color:col.mut});tx(String(z1),lx+lw,ly+44,{size:24,mono:true,color:col.mut,align:'right'});
+  if(s.pw){const wp=eo(prog(t,ts+.1,ts+.5));rr(M(s.pw[0]),ly-16,(M(s.pw[1])-M(s.pw[0]))*wp,32,8,rgba(col.gr,.22),col.gr,3);
+   tx('pass ['+s.pw[0]+', '+s.pw[1]+']',x+PW/2,ly-30,{size:26,align:'center',color:col.gr,mono:true,alpha:wp})}
+  else{tx('merged into the code FFN',x+PW/2,ly-30,{size:26,align:'center',color:col.te,weight:600,alpha:eo(prog(t,ts+.1,ts+.5))});
+   for(let k=0;k<7;k++)line(M(-216+k*72),ly-12,M(-216+k*72),ly+12,rgba(col.te,.6),3)}
+  // dot: appears at Z, slides to clamp
+  const appear=eob(prog(t,ts+.15,ts+.55)),slide=eio(prog(t,ts+.9,ts+1.35));
+  const zx=M(s.Z),ux=M(s.u),px=lerp(zx,ux,s.hit?slide:0);
+  const clampedFlash=s.hit?Math.max(0,1-Math.abs(prog(t,ts+.9,ts+1.6)*2-1)):0;
+  if(t>=ts+.15){const dc=s.hit&&slide>.5?col.pk:col.am;
+   dot(px,ly,16*clamp(appear,0,1.2),dc,26);
+   const sh=s.hit?`Z=${s.Z} → ${s.u}`:`Z=${s.Z}`;
+   tx(s.hit&&slide>.2?String(s.u):String(s.Z),px,ly-52+(s.pw?-30:0)*0,{size:30,align:'center',mono:true,color:dc,alpha:0})}
+  if(s.hit&&t>=ts+.9){const f=eo(prog(t,ts+.9,ts+1.2));
+   tx('CLAMP',x+PW/2,PY+150,{size:40,align:'center',color:col.pk,ls:4,alpha:f,glow:col.pk,gb:30});
+   tx(s.Z+' → '+s.u,x+PW/2,PY+PH-18,{size:28,align:'center',color:col.pk,mono:true,alpha:f})}
+  else if(t>=ts+.9&&s.pw){tx('inside the window',x+PW/2,PY+150,{size:30,align:'center',color:col.gr,alpha:eo(prog(t,ts+.9,ts+1.2)),weight:700})}
+  else if(t>=ts+.9){tx('Z = '+s.Z+' → code FFN',x+PW/2,PY+150,{size:30,align:'center',color:col.te,alpha:eo(prog(t,ts+.9,ts+1.2)),weight:700})}
+  ctx.restore();
+ });
+ STEPS.forEach((s,i)=>{const x=P0+i*(PW+PG),ts=T0+i*DT;
+  if(i<3&&t>=T0+i*DT-.4){const fp=prog(t,ts+1.35,ts+1.95);if(fp>0&&fp<=1){const e=eio(fp),fx=lerp(x+PW-60,x+PW+PG+110,e),fy=PY+84;
+    ctx.save();ctx.globalAlpha=1-prog(fp,.8,1);glow(col.am,26);rr(fx-44,fy-24,88,48,24,rgba(col.am,.25),col.am,3);noglow();tx('u='+s.u,fx,fy+11,{size:26,align:'center',mono:true,color:col.am});ctx.restore()}}
+ });
+ caption(caps,t);fadeEdges(t,17);
+});
+</script></body></html>

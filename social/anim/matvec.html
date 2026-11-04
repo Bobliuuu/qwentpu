@@ -1,0 +1,99 @@
+<!doctype html><html><head><meta charset="utf-8"><title>life of a matvec</title><style>html,body{margin:0;background:#090c19}canvas{display:block}</style></head><body><canvas id="c"></canvas>
+<script src="lib.js"></script><script>
+// Life of a matvec. Illustration with made-up small integers: 4 weight rows, 1-bit activation x = [1,0,1,1].
+const R=[[2,-1,0,3],[1,1,-2,0],[-1,2,3,1],[0,-3,1,2]],X=[1,0,1,1],SEL=[0,2,3];
+const Y=[0,1,2,3].map(c=>SEL.reduce((s,r)=>s+R[r][c],0));
+const GX=640,GY=270,CW=142,CH=104,PX=150,PY=110;
+const cx=c=>GX+c*PX,cy=r=>GY+r*PY,ACCY=790;
+const caps=[[.4,3.2,'A Gated DeltaNet head is a little RAM with a built-in adder.'],[3.4,6.2,'One-hot write: store a weight row. Its cells light up.'],[6.5,8.6,'The activation token marks which rows to read.'],[8.8,12.6,'One multi-hot read returns the exact SUM of those rows.'],[12.9,15.2,'The result is the next token. It feeds the next layer.']];
+const WT=i=>3.5+i*.7;            // write start of row i
+const ST=k=>8.9+k*1.15;          // read start of selected row k
+const FL=.6;                     // flight time
+function cell(r,c,t){
+ const w=prog(t,WT(r)+FL-.1,WT(r)+FL+.25);              // lit by write landing
+ const flash=1-prog(t,WT(r)+FL,WT(r)+FL+1.0);
+ let sel=prog(t,7.2,7.9),dim=X[r]?0:sel;
+ const x=cx(c),y=cy(r);
+ const base=mix('#12172f','#15355a',w), lit=w>0?rgba(col.te,.28*flash+.0):'rgba(0,0,0,0)';
+ ctx.save();ctx.globalAlpha=1-.65*dim;
+ rr(x,y,CW,CH,14,base,w>0?mix('#2b3566','#2fd9bb',Math.max(flash,X[r]*sel*.9)):col.line,2.5);
+ if(flash>0){glow(col.te,40*flash);rr(x,y,CW,CH,14,lit);noglow()}
+ // value shown (fades in on landing); hides while its number is in flight
+ const k=SEL.indexOf(r);let hide=0;
+ if(k>=0){hide=prog(t,ST(k)+c*.07,ST(k)+c*.07+.15)}
+ if(w>0)tx((R[r][c]>0?'+':'')+R[r][c],x+CW/2,y+CH/2+16,{size:54,align:'center',mono:true,color:mix('#2fd9bb','#f2f4ff',1-flash*.4),alpha:w*(1-hide*.85)});
+ ctx.restore()}
+register(15.5,t=>{
+ header('1','LIFE OF A MATVEC',t);
+ // titles for grid
+ const a0=eo(prog(t,.2,1));
+ tx('HEAD STATE  S',GX,GY-48,{size:34,color:col.mut,ls:4,alpha:a0});
+ tx('illustration: made-up small integers',W/2,938,{size:26,color:col.mut,align:'center',weight:500,alpha:a0*.8});
+ for(let r=0;r<4;r++)tx('row '+r,GX-24,cy(r)+CH/2+14,{size:34,align:'right',color:col.mut,alpha:a0,mono:true});
+ // empty grid base
+ for(let r=0;r<4;r++)for(let c=0;c<4;c++)rr(cx(c),cy(r),CW,CH,14,'#0e1328',col.line,2,a0*.8);
+ // write tokens flying in
+ for(let i=0;i<4;i++){
+  const p=prog(t,WT(i),WT(i)+FL),tkOn=t>=WT(i)-.3&&t<WT(i)+FL;
+  if(t>=WT(i)-.3&&p<1){const e=eio(p);const x=lerp(70,GX-6,e),y=cy(i)+CH/2;
+   ctx.save();ctx.globalAlpha=eo(prog(t,WT(i)-.3,WT(i)))*(1-prog(p,.85,1));
+   rr(x-10,y-34,230,68,34,rgba(col.pu,.25),col.pu,3);tx('write row '+i,x+105,y+12,{size:32,align:'center',color:'#d9d3ff'});ctx.restore()}
+ }
+ if(t>3.2&&t<5)tx('one-hot write',70,GY+4,{size:34,color:col.pu,ls:3,alpha:prog(t,3.2,3.6)*(1-prog(t,4.6,5))});
+ for(let r=0;r<4;r++)for(let c=0;c<4;c++)cell(r,c,t);
+ // activation bits aligned with the rows
+ const ab=eo(prog(t,6.3,7.0));
+ if(ab>0){tx('x',380,GY-14,{size:40,color:col.am,align:'center',alpha:ab});tx('activation',390,GY-48,{size:26,color:col.am,align:'center',alpha:0,weight:500});
+  for(let r=0;r<4;r++){const on=X[r],y=cy(r)+CH/2;const sel=prog(t,7.2,7.9);
+   const xx=lerp(150,380,ab);
+   ctx.save();ctx.globalAlpha=ab;rr(xx-42,y-36,84,72,14,on?rgba(col.am,.22):'#10152c',on?col.am:col.line,3);
+   tx(String(on),xx,y+17,{size:54,align:'center',mono:true,color:on?col.am:col.mut});
+   if(on&&sel>0){line(xx+42,y,lerp(xx+42,GX-130,sel),y,col.am,4,[10,8],1)}
+   ctx.restore()}
+  tx('token carries x = [1,0,1,1]',380,GY+4*PY+34,{size:28,color:col.am,align:'center',alpha:ab,weight:500})}
+ // accumulator
+ const ac=eo(prog(t,8.2,9));
+ tx('SUM  (the read)',GX,ACCY-28,{size:34,color:col.mut,ls:4,alpha:ac*(1-prog(t,12.9,13.3))});
+ const part=[0,0,0,0];
+ for(let c=0;c<4;c++){
+  let v=0,pulse=0;
+  SEL.forEach((r,k)=>{const t0=ST(k)+c*.07,arr=t0+.7;if(t>=arr){v+=R[r][c];pulse=Math.max(pulse,1-prog(t,arr,arr+.5))}});
+  const x=cx(c),done=prog(t,12.3,12.9);
+  ctx.save();ctx.globalAlpha=ac;
+  rr(x,ACCY,CW,CH-4,14,'#10152c',mix('#2b3566','#ffb347',Math.max(pulse,done)),3);
+  if(pulse>0||done>0){glow(col.am,30*Math.max(pulse,done));rr(x,ACCY,CW,CH-4,14,rgba(col.am,.12*Math.max(pulse,done)));noglow()}
+  tx((v>0?'+':'')+v,x+CW/2,ACCY+CH/2+12,{size:56,align:'center',mono:true,color:col.am});ctx.restore()}
+ // flying numbers from selected rows down to accumulator
+ SEL.forEach((r,k)=>{
+  for(let c=0;c<4;c++){const t0=ST(k)+c*.07,p=prog(t,t0,t0+.7);
+   if(p>0&&p<1){const e=eio(p),x=cx(c)+CW/2,y=lerp(cy(r)+CH/2,ACCY+CH/2-2,e);
+    const lift=Math.sin(p*Math.PI)*0;ctx.save();glow(col.am,28);
+    tx((R[r][c]>0?'+':'')+R[r][c],x+Math.sin(p*Math.PI)*(r%2?26:-26)+lift,y+14,{size:56,align:'center',mono:true,color:'#fff0d0',alpha:1-.4*p*p});ctx.restore()}}
+  const lab=prog(t,ST(k),ST(k)+.3)*(1-prog(t,ST(k)+.9,ST(k)+1.1));
+  if(lab>0)tx('+ row '+r,GX+PX*4+30,cy(r)+CH/2+14,{size:38,color:col.am,alpha:lab,mono:true});
+ });
+ // right column: result token and next layer
+ const RX=1380;
+ const nl=eo(prog(t,12.4,13.2));
+ if(nl>0){
+  ctx.save();ctx.globalAlpha=nl;
+  rr(RX,GY,450,PY*3+CH,18,'#0e1328',col.line,2.5);
+  tx('LAYER  n+1',RX+225,GY+52,{size:34,align:'center',color:col.mut,ls:4});
+  tx('reads the token',RX+225,GY+104,{size:30,align:'center',color:col.mut,weight:500});
+  const arr=prog(t,14.0,14.7);
+  rr(RX+20,GY+150,410,100,18,mix('#12172f','#3a2a0a',arr),mix('#2b3566','#ffb347',arr),3);
+  tx('x = ['+Y.join(', ')+']',RX+225,GY+214,{size:36,align:'center',mono:true,color:lerp(0,1,arr)>0?col.am:col.mut,alpha:arr});
+  if(arr===0)tx('waiting...',RX+225,GY+214,{size:34,align:'center',color:col.mut,weight:500});
+  tx('its input',RX+225,GY+300,{size:30,align:'center',color:col.mut,weight:500,alpha:arr});
+  ctx.restore()}
+ // result token flight
+ const fp=prog(t,12.9,14.2);
+ if(fp>0){const e=eio(fp),x=lerp(cx(0),RX+20,e),y=0;
+  const w=lerp(CW*4+PX*3-PX*3-12,410,e);const h=lerp(CH-4,100,e);const xx=lerp(cx(0),RX+20,e),yy=lerp(ACCY,GY+150,e);
+  ctx.save();ctx.globalAlpha=1-prog(t,14.0,14.4);glow(col.am,30);rr(xx,yy,w,h,18,rgba(col.am,.2),col.am,4);noglow();
+  tx('y = ['+Y.join(', ')+']',xx+w/2,yy+h/2+14,{size:lerp(46,36,e),align:'center',mono:true,color:col.am});ctx.restore()}
+ if(t>12.3&&t<13)tx('result token: y',cx(0)+PX*2-10,ACCY+CH+46,{size:34,align:'center',color:col.am,alpha:prog(t,12.3,12.7)});
+ if(t>12.9)tx('exact in bf16',RX+225,GY+PY*3+CH+54,{size:30,align:'center',color:col.mut,weight:500,alpha:prog(t,13.2,13.6)*(1-prog(t,14.4,14.8))});
+ caption(caps,t);fadeEdges(t,15.5);
+});
+</script></body></html>

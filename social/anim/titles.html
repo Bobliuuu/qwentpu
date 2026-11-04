@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8"><title>qwenTPU title cards</title><style>html,body{margin:0;background:#090c19}canvas{display:block}</style></head><body><canvas id="c"></canvas>
+<script src="lib.js"></script><script>
+const scene=new URLSearchParams(location.search).get('scene')||'intro';
+const fade=(t,a)=>eo(prog(t,a,a+.5));
+if(scene==='intro'){
+ const L=[['First a CPU.',.2],['Then a GPU.',.9],['Then a filesystem.',1.6],['Then another GPU.',2.3]];
+ register(8,t=>{
+  const out=1-prog(t,3.6,4.1);
+  L.forEach(([s,a],i)=>{const f=fade(t,a);tx(s,W/2,250+i*118,{size:86,align:'center',color:col.ink,alpha:f*out*(.45+.55*(i===3?1:.5)),weight:800})});
+  tx('What’s next?',W/2,480,{size:104,align:'center',color:col.ink,weight:800,alpha:fade(t,4.0)*(1-prog(t,5.4,5.8))});
+  const q=eob(prog(t,5.6,6.3));
+  if(q>0){ctx.save();ctx.translate(W/2,520);ctx.scale(.6+.4*q,.6+.4*q);ctx.globalAlpha=clamp(q,0,1);tx('qwenTPU',0,0,{size:190,align:'center',color:col.pu,weight:800,glow:col.pu,gb:50,ls:2});ctx.restore()}
+  tx('A TPU compiled into the weights of a stock Qwen3.5.',W/2,640,{size:48,align:'center',color:col.ink,weight:600,alpha:fade(t,6.4)});
+  tx('No training. No chip. Integer-exact.',W/2,712,{size:40,align:'center',color:col.mut,weight:600,alpha:fade(t,6.8)});
+  fadeEdges(t,8)});
+}else{
+ register(7,t=>{
+  tx('First a CPU. Then a GPU. Then a filesystem. Then another GPU.',W/2,290,{size:50,align:'center',color:col.mut,weight:700,alpha:fade(t,.2)});
+  tx('Now: qwenTPU.',W/2,410,{size:110,align:'center',color:col.pu,weight:800,alpha:fade(t,.9),glow:col.pu,gb:30});
+  const items=[['NO TRAINING',col.pu],['INTEGER-EXACT',col.te],['0 MISMATCHES IN 1,139,712 POSITIONS',col.am]];
+  let x=0;ctx.save();ctx.font=`700 28px ${SANS}`;ctx.letterSpacing='2px';const ws=items.map(i=>ctx.measureText(i[0]).width+56);ctx.restore();
+  const tot=ws.reduce((a,b)=>a+b,0)+2*24;x=(W-tot)/2;
+  items.forEach((it,i)=>{pill(it[0],x,500,it[1],{alpha:fade(t,1.8+i*.25)});x+=ws[i]+24});
+  tx('github.com/Bobliuuu/qwentpu',W/2,700,{size:56,align:'center',color:col.ink,weight:700,alpha:fade(t,2.9),mono:true});
+  tx('bobliuuu.github.io/qwentpu',W/2,774,{size:44,align:'center',color:col.mut,weight:600,alpha:fade(t,3.3),mono:true});
+  tx('Builds on Qwenputer, QwenPU and qwenGPU. Not faster than QwenPU per op. Details and limits in the write-up.',W/2,900,{size:28,align:'center',color:col.mut,weight:500,alpha:fade(t,4.0)});
+  fadeEdges(t,7)});
+}
+</script></body></html>

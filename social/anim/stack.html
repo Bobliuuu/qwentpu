@@ -1,0 +1,81 @@
+<!doctype html><html><head><meta charset="utf-8"><title>the stack is the datapath</title><style>html,body{margin:0;background:#090c19}canvas{display:block}</style></head><body><canvas id="c"></canvas>
+<script src="lib.js"></script><script>
+// Numbers: results (README / data.json chip_path): whole network 6,629 tok/s, TPU layers only 74,462 tok/s, 11x, A100 0.8B 8x8 u3s3 (2 chip layers).
+// Each dot = 500 tokens; the run shows 1.00 s of real time stretched over 6 video seconds.
+const FULL=6629,TPU=74462,DOT=500,TS=4.4,SC=6;
+const caps=[[.5,3.6,'The layer stack is the datapath. Text tokens run every layer.'],[3.8,10.4,'Chip tokens skip Qwen’s muted layers. Same trace, bit-identical.'],[10.8,13.2,'11× the tokens per second, from skipping work.']];
+const NQ=12,BARH=30,BARG=12,SY=262;
+const qy=i=>SY+i*(BARH+BARG),CY0=SY+NQ*(BARH+BARG)+22,cyl=k=>CY0+k*(BARH+14);
+const END=cyl(1)+BARH+34;
+const panels=[{x:70,w:850,name:'WHOLE NETWORK',sub:'every token runs every layer',rate:FULL,travel:1.3,skip:false,color:col.mut},{x:1000,w:850,name:'TPU LAYERS ONLY',sub:'muted Qwen layers skipped',rate:TPU,travel:.5,skip:true,color:col.te}];
+function drawStack(p,t,lit,textTok){
+ const bx=p.x+150,bw=250;
+ tx(p.name,p.x,168,{size:36,color:p.skip?col.te:col.ink,ls:4});
+ tx(p.sub,p.x,208,{size:28,color:col.mut,weight:500});
+ for(let i=0;i<NQ;i++){const y=qy(i),L=lit.q[i];
+  const mutedChip=p.skip;
+  rr(bx,y,bw,BARH,8,mix('#161c3a','#4a4f7e',L),mix('#2b3566','#9aa3d4',L),2,mutedChip?.35+.0:1);
+  if(i===NQ-1||i===0)tx(i===0?'Qwen 1':'Qwen '+NQ+' ...',bx-14,y+BARH-6,{size:22,align:'right',color:col.mut,weight:500,alpha:mutedChip?.5:1});
+ }
+ tx('Qwen layers (muted for chip tokens)',bx+bw/2,qy(NQ-1)+BARH+28,{size:0.1,alpha:0});
+ for(let k=0;k<2;k++){const y=cyl(k),L=lit.c[k];
+  rr(bx,y,bw,BARH+4,8,mix('#241f5a','#6b5cff',L),mix('#8f7fff','#d9d3ff',L),3);
+  tx('chip '+(k+1),bx-14,y+BARH-2,{size:24,align:'right',color:col.pu,weight:700})}
+ if(p.skip){ // bypass arrow
+  const bxp=bx+bw+44;line(bxp,SY-20,bxp,CY0-12,col.te,5,[14,10]);tx('skip',bxp+16,qy(10)+8,{size:26,color:col.te,ls:2});}
+}
+function dots(p,t,txt){
+ // returns lit state and draws dots
+ const lit={q:new Array(NQ).fill(0),c:[0,0]};
+ const bx=p.x+150,bw=250,cxm=bx+bw/2,bxp=bx+bw+44;
+ const topY=SY-26,botY=cyl(1)+BARH+4;
+ const n=Math.floor(p.rate/DOT*prog(t,TS,TS+6)*1)+4;
+ const list=[];
+ // chip tokens: exit time k*DOT/rate*SC after TS; spawn = exit - travel
+ for(let k=1;k<=Math.floor(p.rate/DOT);k++){const te=TS+k*DOT/p.rate*SC,ts=te-p.travel;if(t>=ts&&t<=te)list.push({f:(t-ts)/p.travel,chip:true})}
+ // text token: slow, goes through every layer in both panels
+ if(t>=1.2&&t<=3.5){const f=prog(t,1.2,3.5);list.push({f,chip:false})}
+ for(const d of list){let x,y;
+  if(!d.chip||!p.skip){x=cxm;y=lerp(topY,botY,d.f)}
+  else{ // top -> along bypass line -> chip layers
+   const f=d.f;if(f<.2){x=lerp(cxm,bxp,f/.2);y=topY}else if(f<.8){x=bxp;y=lerp(topY,CY0-12,(f-.2)/.6)}else{x=lerp(bxp,cxm,(f-.8)/.2);y=lerp(CY0-12,botY,(f-.8)/.2)}}
+  // light bars near dot
+  for(let i=0;i<NQ;i++){const dy=Math.abs(y-(qy(i)+BARH/2));if((!d.chip||!p.skip)&&dy<40)lit.q[i]=Math.max(lit.q[i],1-dy/40)}
+  for(let k=0;k<2;k++){const dy=Math.abs(y-(cyl(k)+BARH/2));if(dy<40)lit.c[k]=Math.max(lit.c[k],1-dy/40)}
+  const c=d.chip?col.te:col.am;
+  const a=d.chip&&!p.skip?.9:1;
+  ctx.save();ctx.globalAlpha=a*Math.min(1,d.f*8)*Math.min(1,(1-d.f)*8+.3);dot(x,y,d.chip?(p.skip?8:13):16,c,d.chip?14:28);ctx.restore()}
+ return lit}
+register(13.6,t=>{
+ header('3','THE STACK IS THE DATAPATH',t);
+ const a=eo(prog(t,.2,.9));
+ panels.forEach((p,pi)=>{
+  ctx.save();ctx.globalAlpha=a;
+  rr(p.x-24,128,p.w+24,830-0,22,'rgba(18,23,47,.55)',pi?rgba(col.te,.5):col.line,2.5);
+  const lit=dots(p,t);drawStack(p,t,lit);ctx.restore();
+  // redraw dots on top
+  ctx.save();ctx.globalAlpha=a;dots(p,t);ctx.restore();
+  // counter
+  const el=clamp((t-TS)/SC,0,1),cnt=Math.floor(p.rate*el);
+  const cxn=p.x+p.w-26;
+  ctx.save();ctx.globalAlpha=a;
+  tx(comma(el>=1?p.rate:cnt),cxn,420,{size:84,align:'right',mono:true,color:p.skip?col.te:col.ink,glow:p.skip?col.te:null,gb:30});
+  tx('tok/s',cxn,470,{size:40,align:'right',color:col.mut,weight:600});
+  tx('A100 · batch 1 · 0.8B',cxn,512,{size:24,align:'right',color:col.mut,weight:500});tx('8×8 u3s3 · 2 chip layers',cxn,544,{size:24,align:'right',color:col.mut,weight:500});
+  // elapsed bar
+  rr(cxn-300,580,300,12,6,'#10152c',col.line,1.5);rr(cxn-300,580,300*el,12,6,p.skip?col.te:col.mut);
+  tx('real time '+(el*1).toFixed(2)+' s',cxn,630,{size:28,align:'right',mono:true,color:col.mut});
+  tx('(stretched 6× for the screen)',cxn,664,{size:22,align:'right',color:col.mut,weight:500,alpha:.8});
+  ctx.restore()});
+ const lg=eo(prog(t,.8,1.4));
+ ctx.save();ctx.globalAlpha=lg;dot(110,916,10,col.am,16);tx('text token',134,926,{size:28,color:col.mut});dot(330,916,9,col.te,14);tx('chip token  (1 dot = 500 tokens)',352,926,{size:28,color:col.mut});ctx.restore();
+ tx('same trace  ·  bit-identical',1840,926,{size:32,align:'right',color:col.ink,alpha:eo(prog(t,9,9.8)),weight:600});
+ // 11x badge
+ const bp=eob(prog(t,10.4,11.2));
+ if(bp>0){ctx.save();ctx.translate(1665,770);ctx.scale(bp,bp);glow(col.te,40);rr(-150,-62,300,124,28,rgba(col.te,.16),col.te,4);noglow();
+  tx('11×',0,28,{size:100,align:'center',color:col.te,glow:col.te,gb:30});ctx.restore()}
+ const cg=eo(prog(t,11.8,12.6));
+ tx('+ CUDA graphs: free-running chained matvecs hit 705 / s',W/2,945,{size:0.1,alpha:0});
+ fadeEdges(t,13.6);caption(caps,t);
+});
+</script></body></html>
