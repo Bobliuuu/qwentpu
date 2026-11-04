@@ -1,0 +1,7 @@
+cfg Dmax=4 n=4 u3s3 KR=16 chip_layers=3 runs=24 nontrivial=11 emitted_lens=[8, 16, 24, 32] bad=0 3.3s
+cfg Dmax=2 n=8 u3s3 KR=16 chip_layers=3 runs=12 nontrivial=9 emitted_lens=[16, 32] bad=0 1.4s
+GOLDEN MLP (depth-2 program) exact: 20 / 20
+depth-1 program (hidden layer alone) exact: 10 / 10
+cfg Dmax=2 n=16 u5s5 KR=32 chip_layers=20 runs=12 nontrivial=11 emitted_lens=[32, 64] bad=0 63.5s
+TOTAL BAD 0
+17 passed in 12.10s

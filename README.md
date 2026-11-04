@@ -43,6 +43,33 @@ Their design vocabulary (DeltaNet rows as RAM, tokens as the trace) is what we b
 Not faster than QwenPU per op (it streams 64 lanes per token, we do 4 to 64 MACs per token).
 [TinyTPU](https://github.com/tiny-tpu-v2/tiny-tpu) is the architecture reference only: this repo shares no code with it, and our array is not systolic in space.
 
+## 🧬 v1 and v2
+
+Two versions live in this repo. v1 is tagged `v1.0`; v2 is on `main` as new files and leaves v1 bit-identical.
+
+| | **v1: matvec array** | **v2: a TPU that runs a program** |
+|---|---|---|
+| What it is | weight-stationary matrix-multiply array in Qwen's weights | the same array plus a tiny instruction set, exact ReLU and clamp, and a sequencer |
+| Who picks the chip tokens | **the host** (CELL, ACT, READ, OUT) | **the model**: after the prompt it emits every token itself |
+| What the host does | drives the machine token by token | builds the prompt (weights, input, entry point) and runs `argmax; append` until HALT |
+| Nonlinearity | none | `clip(relu(x@W), 0, max)` in the datapath, at zero extra layers |
+| What the prompt chooses | data only | the network: depth, per-layer widths, weights, input |
+| Proven on | A100, A10G, L4, x86 Xeon (1,139,712 replayed positions, 0 mismatches) | Qwen3.5-0.8B on an A100 (below) |
+
+**v2 results** (`results/a100/v2_prog.txt`, `results/a100/v2_feedback.txt`; bf16, real Qwen3.5-0.8B):
+
+- One compiled model, depths 1 to 4: 24 of 24 programs exact. 8-wide, depths 1 to 2: 12 of 12. 16-wide at 5-bit (20 chip layers): 12 of 12.
+- A small digit classifier (15 to 15 to 10, 5-bit integer weights; 87.6% on 540 held-out digits, against 91.1% for the float version of the same network) runs as a depth-2 program through the model: logits match the integer golden on **20 of 20** digits.
+- The model's next token after a READ spells the next layer's ACT token: 128 of 128 feedback tokens exact on the real model (8×8, 5-bit).
+
+**What is still compiled into the weights in v2:** the array size and number format, the READ, ACT, READ token cycle, and chain-only topology. There are no early exits, branches or loops, and outputs are ReLU-clamped (no signed logits). A general instruction memory would remove most of that; it is designed in `docs/V2_SEQUENCER.md` and not built.
+
+```python
+from qwentpu.sequencer2 import ProgramMachine, run_program   # see tests/test_sequencer2.py for a full run
+```
+
+Details: `docs/V2_ISA.md` (instruction set, token layout), `docs/V2_SEQUENCER.md` (how the model sequences itself), `examples/mlp/` (the classifier and golden outputs).
+
 ## 🧠 How it works
 
 A Gated DeltaNet head (Qwen3.5's linear-attention layer) keeps a state matrix `S`. That is exactly the memory and adder a TPU needs:
@@ -141,6 +168,7 @@ with s.chip():                                         # the TPU, in the same mo
 | `qwentpu/circuit.py` | the TPU in our IR: weight/accumulator heads, AND products, adder-tree planner, packing |
 | `qwentpu/compiler/` | **own compiler**: IR, bf16 exactness evaluator, weight emitter, integer gadgets |
 | `qwentpu/merge.py`, `mute.py` | widen Qwen, append the TPU layers, `tau`, muting, split-K guard |
+| `qwentpu/isa.py`, `program.py`, `sequencer.py`, `sequencer2.py`, `compiler/nonlin.py` | v2: instruction set, golden interpreter, self-sequencing, prompt-chosen programs, exact ReLU and feedback |
 | `qwentpu/driver.py` | `ChipPath`, `GraphedChip` / `GraphedTrace` (CUDA graphs), `TpuSession`, `HybridSession` |
 | `bench.py`, `bench_driver.py` | mass replay vs NumPy · free-running chained matvecs |
 | `run_matrix.sh` | every array on every model |
@@ -149,7 +177,7 @@ with s.chip():                                         # the TPU, in the same mo
 
 ## ⚠️ Limits, honestly
 
-- **v1 is host-driven.** The host chooses every chip token (CELL, ACT, READ, OUT); the model only computes. There is no program in the model and no in-datapath nonlinearity. v2, in progress, is the work on that.
+- **v1 is host-driven.** The host chooses every chip token and there is no in-datapath nonlinearity. v2 moves the sequencing into the model (see [v1 and v2](#-v1-and-v2)), but its schedule, array size and chain topology are still compiled into the weights, and the host still builds the prompt and runs the argmax loop.
 - **Teacher-forced numbers are prefill throughput.** The free-running figure is the honest chained number.
 - **The split-K guard is a process-wide torch flag** set by `merge.instantiate`. A saved checkpoint loaded with plain HF does not get it: set `torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = False` yourself.
 
