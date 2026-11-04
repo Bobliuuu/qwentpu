@@ -1,0 +1,45 @@
+<!doctype html><html><head><meta charset="utf-8"><title>qwenTPU v2 intro</title><style>html,body{margin:0;background:#fff}canvas{display:block}</style></head><body><canvas id="c"></canvas>
+<script src="light.js"></script><script src="trace_v2.js"></script><script src="v2common.js"></script><script>
+// Three beats: v1 host loop, the model feeds itself, title card. Tokens shown (READ k / ACT k = v / OUT v) are the real ones of golden digit 0.
+const d=D2.digits[0],T1=3.4,T2=6.6,DUR=9.6;
+const LOOP=[[1400,650],[1560,650],[1560,930],[880,930],[880,650],[1000,650]];
+function stack(hl){const x=1000,y=470,w=400,h=360;rr(x,y,w,h,20,'#eef4ff',C.blue,3+hl*3);
+ for(let i=0;i<9;i++){const l=Math.max(0,1-Math.abs(((i/8)-hl)*5));rr(x+24,y+24+i*34,w-48,24,7,mixc('#c9dbff','#2563eb',l*.0+(hl>0?Math.max(0,1-Math.abs(i/8-(1-hl))*4):0)),null)}
+ tx('Qwen3.5-0.8B',x+w/2,y+h+44,{size:32,weight:800,align:'center',color:C.blue})}
+register(DUR,u=>{
+ const a1=eo(prog(u,0,.5))*(1-prog(u,T1-.4,T1)),a2=eo(prog(u,T1,T1+.5))*(1-prog(u,T2-.4,T2)),dg=1-prog(u,T2-.5,T2),a3=eo(prog(u,T2+.1,T2+.7));
+ // headline text
+ ctx.save();ctx.globalAlpha=a1;tx('v1: a matrix engine.',W/2,190,{size:84,weight:800,align:'center'});tx('The host picks every token.',W/2,278,{size:60,weight:700,align:'center',color:C.or});ctx.restore();
+ ctx.save();ctx.globalAlpha=a2;tx('What if the model ran',W/2,190,{size:84,weight:800,align:'center'});tx('the program itself?',W/2,290,{size:84,weight:800,align:'center',color:C.blue});ctx.restore();
+ // diagram
+ ctx.save();ctx.globalAlpha=dg*eo(prog(u,.3,.9));
+ const m=eio(prog(u,T1+.3,T1+1.3)); // host shrink
+ const hx=110,hy=lerp(520,610,m),hw=lerp(330,260,m),hh=lerp(260,100,m);
+ let hot=0;const ph=(u*1.1)%1;
+ stack(hot);
+ // v1 loop arrows (fade out in beat 2)
+ const v1a=1-m;ctx.save();ctx.globalAlpha*=v1a;arrow(hx+hw+10,590,990,590,C.or,5);arrow(990,720,hx+hw+10,720,C.gr,5);ctx.restore();
+ box(hx,hy,hw,hh,'HOST',m>.6?null:'feeds tokens',C.or,C.orl,0);
+ if(m>.6){tx('argmax; append',hx+hw/2,hy+hh+44,{size:32,weight:800,align:'center',color:C.or,alpha:(m-.6)/.4})}
+ // v1 dots
+ const toks=[['READ 0','READ'],['ACT 1 = 0','ACT'],['READ 2','READ'],['ACT 3 = 0','ACT']];
+ if(u<T1+.6){const k=Math.floor(u/.8)%4,f=(u%.8)/.8;const [s,kd]=toks[k];ctx.save();ctx.globalAlpha=v1a;
+  if(f<.5){const q=eio(f/.5);chipC(s,lerp(520,860,q),590,kd)}else{const q=eio((f-.5)/.5);chipC('OUT '+[9,0,0,0][k],lerp(860,520,q),720,'OUT')}ctx.restore()}
+ // v2 loop
+ const la=eo(prog(u,T1+.6,T1+1.4));ctx.save();ctx.globalAlpha*=la;
+ ctx.strokeStyle=C.gr;ctx.lineWidth=6;ctx.setLineDash([16,10]);ctx.beginPath();LOOP.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.stroke();ctx.setLineDash([]);
+ arrow(960,650,998,650,C.gr,6);
+ tx('its output is its next input',1220,985,{size:32,weight:800,align:'center',color:C.gr});
+ ln(hx+hw,hy+hh/2,880,hy+hh/2>650?790:700,C.or,3,[10,8]);
+ if(u>T1+1.4){const seq=[['READ 0','READ'],['ACT 0 = 9','ACT'],['READ 1','READ'],['ACT 1 = 0','ACT']];const q=((u-T1-1.4)/.7);const k=Math.floor(q)%4,f=q-Math.floor(q);const [s,kd]=seq[k];const [x,y]=alongPath(LOOP,f);chipC(s,x,y,kd)}
+ ctx.restore();ctx.restore();
+ // title card
+ ctx.save();ctx.globalAlpha=a3;
+ tx('qwenTPU',W/2-160,470,{size:190,weight:800,align:'center',color:C.ink});tx('v2',W/2+410,470,{size:190,weight:800,align:'center',color:C.blue});
+ tx('a TPU that runs a program, inside Qwen3.5.',W/2,590,{size:56,weight:700,align:'center'});
+ tx('No TPU hardware, no training.',W/2,680,{size:48,weight:600,align:'center',color:C.mut});ctx.restore();
+ // caption (>=28px)
+ const cp=(a,b,s)=>{const k=Math.min(prog(u,a,a+.3),1-prog(u,b-.3,b));if(k>0){ctx.save();ctx.globalAlpha=k;tx(s,W/2,1050,{size:36,weight:600,align:'center',color:C.mut});ctx.restore()}};
+ cp(.4,T1,'v1: the host builds every READ, ACT and CELL token; the model writes OUT');cp(T1+.2,T2,'v2: after the prompt, the model emits every token itself');
+});
+</script></body></html>

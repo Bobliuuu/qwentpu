@@ -7,7 +7,7 @@ const args=process.argv.slice(2);const flag=k=>args.includes('--'+k);const val=k
 const OUT=path.join(__dirname,'out');fs.mkdirSync(path.join(OUT,'stills'),{recursive:true});
 const CHROME=process.env.CHROME||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const FPS=Number(val('fps')||30);
-const ALL={qwentpu_v2_demo:'v2_dashboard.html',v2_self_sequencing:'v2_self_sequencing.html',v2_program_in_prompt:'v2_program_in_prompt.html',v2_relu_feedback:'v2_relu_feedback.html',v2_whats_fixed:'v2_whats_fixed.html'};
+const ALL={qwentpu_v2_demo:'v2_dashboard.html',v2_self_sequencing:'v2_self_sequencing.html',v2_program_in_prompt:'v2_program_in_prompt.html',v2_relu_feedback:'v2_relu_feedback.html',v2_whats_fixed:'v2_whats_fixed.html',v2_intro:'v2_intro.html'};
 const skip=new Set(['--stills','--fps','--gifw','--giffps','--colors']);
 const names=args.filter((a,i)=>!a.startsWith('--')&&!skip.has(args[i-1]));
 const todo=names.length?names:Object.keys(ALL);
