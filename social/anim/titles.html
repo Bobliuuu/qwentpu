@@ -11,7 +11,7 @@ if(scene==='intro'){
   const q=eob(prog(t,5.6,6.3));
   if(q>0){ctx.save();ctx.translate(W/2,520);ctx.scale(.6+.4*q,.6+.4*q);ctx.globalAlpha=clamp(q,0,1);tx('qwenTPU',0,0,{size:190,align:'center',color:col.pu,weight:800,glow:col.pu,gb:50,ls:2});ctx.restore()}
   tx('A TPU compiled into the weights of a stock Qwen3.5.',W/2,640,{size:48,align:'center',color:col.ink,weight:600,alpha:fade(t,6.4)});
-  tx('No training. No chip. Integer-exact.',W/2,712,{size:40,align:'center',color:col.mut,weight:600,alpha:fade(t,6.8)});
+  tx('No training. No TPU hardware. Integer-exact.',W/2,712,{size:40,align:'center',color:col.mut,weight:600,alpha:fade(t,6.8)});
   fadeEdges(t,8)});
 }else{
  register(7,t=>{

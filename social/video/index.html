@@ -44,7 +44,7 @@ S.title=(el,t)=>{
  const a=eo(prog(t,.1,1)),b=eo(prog(t,1.2,2.2)),c=eo(prog(t,2.6,3.6));
  el.innerHTML=BG+`
  <div class="abs" style="left:0;right:0;top:215px;text-align:center;opacity:${a};transform:translateY(${(1-a)*24}px);font-size:86px;font-weight:800;letter-spacing:-.01em">A TPU compiled into a language model.</div>
- <div class="abs" style="left:0;right:0;top:335px;text-align:center;opacity:${b};transform:translateY(${(1-b)*24}px);font-size:86px;font-weight:800;color:${C.pu};letter-spacing:-.01em">No chip. No training.</div>
+ <div class="abs" style="left:0;right:0;top:335px;text-align:center;opacity:${b};transform:translateY(${(1-b)*24}px);font-size:86px;font-weight:800;color:${C.pu};letter-spacing:-.01em">No TPU hardware. No training.</div>
  <div class="abs" style="left:0;right:0;top:520px;text-align:center;opacity:${c};font-size:38px;line-height:1.45;color:${C.mut}">A weight-stationary matrix-multiply array, compiled into the weights of a stock <b style="color:${C.ink}">Qwen3.5</b>.<br>It is a language model that learned to do matrix multiplication, without learning anything.</div>
  <div class="abs" style="left:0;right:0;top:700px;display:flex;justify-content:center;gap:30px;opacity:${c}">
   ${[['NO TRAINING',C.pu,C.pul],['EXACT INTEGER ARITHMETIC',C.te,C.tel],['UP TO '+comma(v(D.max_array.macs))+' MACs PER MATVEC',C.am,C.aml]].map(([n,col,bg])=>`<div style="border:2px solid ${col};background:${bg};color:${col};padding:14px 34px;font-size:28px;letter-spacing:.1em;font-weight:700;border-radius:12px">${n}</div>`).join('')}

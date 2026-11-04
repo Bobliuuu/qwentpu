@@ -1,7 +1,7 @@
 <p align="center"><img src="docs/banner.svg" alt="qwenTPU: a TPU compiled into the weights of Qwen3.5" width="100%"></p>
 
 <h1 align="center">qwenTPU</h1>
-<p align="center"><b>A TPU compiled into the weights of a stock Qwen3.5. No chip, no training.<br>A language model that does exact matrix multiplication.</b></p>
+<p align="center"><b>A TPU compiled into the weights of a stock Qwen3.5. No TPU hardware, no training.<br>A language model that does exact matrix multiplication.</b></p>
 
 <p align="center">
 <a href="https://bobliuuu.github.io/qwentpu/"><b>🎮 Watch it run</b></a> ·
