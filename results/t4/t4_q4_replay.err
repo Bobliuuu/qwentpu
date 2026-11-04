@@ -1,0 +1,25 @@
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[W1104 03:20:46.207713359 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1402994688 bytes (free: 1052573696, total: 15637086208).
+q4 8,8,3,3 1 rc done
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[W1104 03:27:19.307902030 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1402994688 bytes (free: 1312620544, total: 15637086208).
+q4 8,8,3,3 8 rc done
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[W1104 03:31:11.506840008 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1470103552 bytes (free: 1023213568, total: 15637086208).
+q4 16,16,3,2 1 rc done
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[W1104 03:35:29.736111555 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 1470103552 bytes (free: 1023213568, total: 15637086208).
+q4 16,16,3,2 8 rc done
+n use. Of the allocated memory 12.36 GiB is allocated by PyTorch, and 628.28 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+q4 32,32,3,3 1 rc done
+n use. Of the allocated memory 12.36 GiB is allocated by PyTorch, and 628.28 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+q4 32,32,3,3 8 rc done
+ce.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[W1104 04:01:06.173153102 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 56623104 bytes (free: 41746432, total: 15637086208).
+q4 8,8,5,5 1 rc done
+ce.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[W1104 04:08:53.781609904 CUDACachingAllocator.cpp:3934] memory allocation failed with OOM on device 0 while trying to allocate 56623104 bytes (free: 41746432, total: 15637086208).
+q4 8,8,5,5 8 rc done
+done

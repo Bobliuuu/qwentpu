@@ -1,7 +1,7 @@
 {
  "_note": "Data-driven: every chart/number reads this file. Run docs/site/sync.sh after editing.",
  "headline": {
-  "outputs_replayed": 1139712,
+  "outputs_replayed": 1361280,
   "mismatches": 0,
   "peak_macs": 1024,
   "peak_macs_per_token": 16.0,
@@ -233,7 +233,8 @@
    "arch": "Ampere sm86",
    "models_tested": [
     "0.8B",
-    "2B"
+    "2B",
+    "4B"
    ],
    "arrays_tested": [
     "16x16 u3s2",
@@ -245,9 +246,9 @@
     "8x8 u4s4",
     "8x8 u5s5"
    ],
-   "replay_outputs": 221184,
+   "replay_outputs": 273024,
    "mismatches": 0,
-   "suite_note": "12 of 12 test-suite runs fully passed"
+   "suite_note": "16 of 16 test-suite runs fully passed"
   },
   {
    "device": "L4 24GB",
@@ -255,7 +256,8 @@
    "arch": "Ada sm89",
    "models_tested": [
     "0.8B",
-    "2B"
+    "2B",
+    "4B"
    ],
    "arrays_tested": [
     "16x16 u3s2",
@@ -267,9 +269,9 @@
     "8x8 u4s4",
     "8x8 u5s5"
    ],
-   "replay_outputs": 190464,
+   "replay_outputs": 211584,
    "mismatches": 0,
-   "suite_note": "12 of 12 test-suite runs fully passed"
+   "suite_note": "16 of 16 test-suite runs fully passed"
   },
   {
    "device": "T4 16GB",
@@ -277,11 +279,19 @@
    "arch": "Turing sm75",
    "models_tested": [
     "0.8B",
-    "2B"
+    "2B",
+    "4B"
    ],
-   "arrays_tested": [],
-   "replay_outputs": null,
-   "mismatches": null,
+   "arrays_tested": [
+    "16x16 u3s2",
+    "16x16 u4s4",
+    "32x32 u3s3",
+    "8x8 u3s3",
+    "8x8 u4s4",
+    "8x8 u5s5"
+   ],
+   "replay_outputs": 148608,
+   "mismatches": 0,
    "suite_note": "9 of 12 test-suite runs fully passed"
   },
   {
@@ -390,13 +400,11 @@
  "chip_path": {
   "model": "0.8B",
   "array": "8×8",
-  "b1_full": 6629,
-  "b1_chip": 74462,
-  "b1_chip_graph": 340925,
-  "b1_chip_graph_note": "GraphedTrace (bench.py --graph), mean of 6 runs (3 repeats x 3 and 20 traces), range 299296-377153; eager rerun in the same session averaged 75207. results/a100/chip_graph_ab.jsonl",
+  "b1_full": 1997,
+  "b1_chip": 24030,
   "b16_full": 33074,
   "b16_chip": 125208,
-  "source": "A100 same trace, 1728 positions: results/a100/ab_same_trace.jsonl (b16 values from final.jsonl / sweep.jsonl, different traces)"
+  "source": "A100: results/a100/final.jsonl (full) and sweep.jsonl (tpu-layers)"
  },
  "v2": {
   "_note": "Only numbers that appear in results/a100/v2_prog.txt and v2_feedback.txt (Qwen3.5-0.8B, A100, bf16).",

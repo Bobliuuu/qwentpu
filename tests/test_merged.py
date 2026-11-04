@@ -27,7 +27,7 @@ PROMPTS = ["The capital of France is Paris, and the capital of Germany is",
 
 def _build_base():
     cfg, sd = load(SRC, DEV); tc = dict(cfg["text_config"]); tc["tie_word_embeddings"] = False
-    sd["lm_head.weight"] = sd["model.embed_tokens.weight"].clone()
+    sd["lm_head.weight"] = sd["model.embed_tokens.weight"] if DEV != "cpu" else sd["model.embed_tokens.weight"].clone()   # same values; no second 1.2 GB copy in VRAM
     return instantiate(tc, sd)
 
 
@@ -36,6 +36,30 @@ class OnDemand:
     mutation copy never sit in VRAM together (24 GB cards) and the base never sits in host RAM next to the merged
     state dict (16 GB hosts).  On the CPU it is simply cached."""
     _cache = None
+    parked = None            # (merged model, host state dict): set by the `merged` fixture on CUDA
+
+    @staticmethod
+    def _need_park(extra=None):
+        """True when the base model does not fit next to the merged one (a 4B merge on a 24 GB card).  On cards that
+        have room (the A100, or 0.8B/2B anywhere) nothing is moved and the path is exactly the old one."""
+        import glob, json, struct
+        text = 0                                                  # bytes of the text tower (what _build_base loads)
+        for f in glob.glob(os.path.join(SRC, "*.safetensors")):
+            with open(f, "rb") as fh:
+                hdr = json.loads(fh.read(struct.unpack("<Q", fh.read(8))[0]))
+            text += sum(v["data_offsets"][1] - v["data_offsets"][0] for k, v in hdr.items() if k.startswith("model.language_model."))
+        return torch.cuda.mem_get_info()[0] < (extra if extra is not None else text) + (0.9 * 2**30)    # + forward activations
+
+    @staticmethod
+    def park(model, sd):
+        """Hand the merged weights back to their host tensors (no copy: the state dict still holds them) so only one of
+        the two models is in VRAM at a time."""
+        for n, p in model.named_parameters(): p.data = sd[n]
+        torch.cuda.empty_cache()
+
+    @staticmethod
+    def unpark(model):
+        for p in model.parameters(): p.data = p.data.to(DEV)
 
     def build(self):
         if DEV == "cpu":
@@ -45,11 +69,14 @@ class OnDemand:
 
     def __call__(self, **kw):
         import gc
+        pk = OnDemand.parked if DEV != "cpu" and OnDemand.parked and self._need_park() else None
+        if pk: self.park(*pk)
         m = self.build()
         try: return m(**kw)
         finally:
             if DEV != "cpu":
                 del m; gc.collect(); torch.cuda.empty_cache()
+            if pk: self.unpark(pk[0])
 
 
 def base_model(): return OnDemand()
@@ -70,7 +97,9 @@ def merged(tok):
     if DEV != "cpu":
         del m; gc.collect(); torch.cuda.empty_cache()
     tc, sd, v0, lay, g = build_merged(SRC, sinks=sinks)
-    return instantiate(tc, sd), base, v0, (tc, sd, g)
+    model = instantiate(tc, sd)
+    if DEV != "cpu": OnDemand.parked = (model, sd)
+    return model, base, v0, (tc, sd, g)
 
 
 def trace(W, X):
@@ -193,10 +222,18 @@ def test_graphed_trace_is_bit_identical(merged):
 def run_once(tc, sd, v0, toks):
     """Build a model, run one trace, and free it again (24 GB cards cannot hold four 2B models)."""
     import gc
-    model = instantiate(tc, sd)
-    out = run(model, v0, toks)
-    del model; gc.collect()
-    if DEV != "cpu": torch.cuda.empty_cache()
+    pk = None
+    if DEV != "cpu" and OnDemand.parked:
+        mb = sum(p.numel() * p.element_size() for p in OnDemand.parked[0].parameters())    # size of the second merged model
+        pk = OnDemand.parked if OnDemand._need_park(mb) else None
+    if pk: OnDemand.park(*pk)                  # a 4B merge on a 24 GB card cannot hold two merged models
+    try:
+        model = instantiate(tc, sd)
+        out = run(model, v0, toks)
+        del model; gc.collect()
+        if DEV != "cpu": torch.cuda.empty_cache()
+    finally:
+        if pk: OnDemand.unpark(pk[0])
     return out
 
 

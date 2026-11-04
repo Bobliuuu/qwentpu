@@ -1,0 +1,73 @@
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q08 8,8,3,3 1 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q08 8,8,3,3 8 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q08 8,8,4,4 1 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q08 8,8,4,4 8 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q08 8,8,5,5 1 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q08 8,8,5,5 8 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q08 16,16,3,2 1 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q08 16,16,3,2 8 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q08 16,16,4,4 1 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q08 16,16,4,4 8 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q08 32,32,3,3 1 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q08 32,32,3,3 8 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q2 8,8,3,3 1 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q2 8,8,3,3 8 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q2 8,8,4,4 1 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q2 8,8,4,4 8 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q2 8,8,5,5 1 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q2 8,8,5,5 8 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q2 16,16,3,2 1 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q2 16,16,3,2 8 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q2 16,16,4,4 1 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q2 16,16,4,4 8 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q2 32,32,3,3 1 rc done
+sion. It is recommended to upgrade to Python 3.11 or higher for the best experience.
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+q2 32,32,3,3 8 rc done
+done

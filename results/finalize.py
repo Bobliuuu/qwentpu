@@ -2,9 +2,9 @@ import json, re, glob, os
 R = os.path.dirname(os.path.abspath(__file__)); REPO = os.path.join(R, "../qwentpu")
 DEVS = [  # key, label, arch, kind, suite files, replay files
  ("A100", "A100 40GB", "Ampere sm80", "gpu", ["a100/a100.suite", "a100/a100q08.suite"], ["a100/a100.jsonl"]),
- ("A10G", "A10G 24GB", "Ampere sm86", "gpu", ["a10g/a10g_final.suite"], ["a10g/a10g.jsonl"]),
- ("L4", "L4 24GB", "Ada sm89", "gpu", ["l4/l4_final.suite"], ["l4/l4.jsonl"]),
- ("T4", "T4 16GB", "Turing sm75", "gpu", ["t4/t4_final.suite"], []),
+ ("A10G", "A10G 24GB", "Ampere sm86", "gpu", ["a10g/a10g_final.suite", "a10g/a10g_4b.suite"], ["a10g/a10g.jsonl", "a10g/a10g_4b.jsonl"]),
+ ("L4", "L4 24GB", "Ada sm89", "gpu", ["l4/l4_final.suite", "l4/l4_4b.suite"], ["l4/l4.jsonl", "l4/l4_4b.jsonl"]),
+ ("T4", "T4 16GB", "Turing sm75", "gpu", ["t4/t4_final.suite"], ["t4/t4_replay.jsonl", "t4/t4_q4_replay.jsonl"]),
  ("Xeon", "x86 Xeon (c6i, Ice Lake)", "x86-64", "cpu", ["xeon/cpu_final.log"], ["xeon/cpu_final.jsonl"]),
 ]
 def suites(files):
