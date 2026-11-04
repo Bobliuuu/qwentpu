@@ -34,11 +34,12 @@ FIT_PROMPTS = ["The capital of France is Paris, and the capital of Germany is",
                "In 1969, Apollo 11 landed on the Moon. Neil Armstrong was the first to"]   # same prompts the tests fit with
 
 
-def load(path):
+def load(path, device="cpu"):
+    """device="cuda" reads the tensors straight onto the GPU, so a 4B base model never takes ~9 GB of host RAM."""
     from safetensors import safe_open
     path = Path(path); cfg = json.loads((path / "config.json").read_text()); sd = {}
     for f in sorted(path.glob("*.safetensors")):
-        with safe_open(f, "pt") as fh:
+        with safe_open(f, "pt", device=device) as fh:
             for k in fh.keys():
                 if k.startswith(TEXT_IN):
                     sd[TEXT_OUT + k[len(TEXT_IN):]] = fh.get_tensor(k)       # text tower only; vision/mtp dropped
@@ -124,12 +125,25 @@ def instantiate(tc, sd, device="cpu"):
     return model.to(torch.bfloat16).to(device).eval()
 
 
+def load_checkpoint(path, device="cpu"):
+    """Load a checkpoint written by `save` with the exact-matmul guard on.  Plain `from_pretrained` skips the
+    guard, and on some GPUs (L4) cuBLAS then split-K's in bf16 and breaks the integer-exact arithmetic."""
+    exact_matmul()
+    from transformers import Qwen3_5ForCausalLM
+    # from_pretrained keeps the rotary inv_freq buffers in fp32; instantiate() casts them to bf16 and the
+    # exactness tests ran on that, so cast the whole model the same way.
+    m = Qwen3_5ForCausalLM.from_pretrained(path, torch_dtype=torch.bfloat16).to(torch.bfloat16).to(device).eval()
+    meta = json.loads((Path(path) / "qwentpu.json").read_text())
+    return m, meta["chip_token_offset"]
+
+
 def save(tc, sd, v0, lay, dst):
     from safetensors.torch import save_file
     dst = Path(dst); dst.mkdir(parents=True, exist_ok=True)
     save_file({k: v.contiguous() for k, v in sd.items()}, dst / "model.safetensors", metadata={"format": "pt"})
     (dst / "config.json").write_text(json.dumps({"architectures": ["Qwen3_5ForCausalLM"], "model_type": "qwen3_5_text", **tc}, indent=2))
-    (dst / "qwentpu.json").write_text(json.dumps({"chip_token_offset": v0, "hidden": lay.hidden, "m": lay.m}))
+    (dst / "qwentpu.json").write_text(json.dumps({"chip_token_offset": v0, "hidden": lay.hidden, "m": lay.m,
+                                                 "note": "load with qwentpu.merge.load_checkpoint: it disables bf16 split-K"}))
 
 
 if __name__ == "__main__":

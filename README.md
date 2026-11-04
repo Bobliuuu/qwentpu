@@ -187,7 +187,7 @@ with s.chip():                                         # the TPU, in the same mo
 
 - **v1 is host-driven.** The host chooses every chip token and there is no in-datapath nonlinearity. v2 moves the sequencing into the model (see [v1 and v2](#-v2-a-tpu-that-runs-a-program)), but its schedule, array size and chain topology are still compiled into the weights, and the host still builds the prompt and runs the argmax loop.
 - **Teacher-forced numbers are prefill throughput.** The free-running figure is the honest chained number.
-- **The split-K guard is a process-wide torch flag** set by `merge.instantiate`. A saved checkpoint loaded with plain HF does not get it: set `torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = False` yourself.
+- **The split-K guard is a process-wide torch flag** set by `merge.instantiate`. Load a saved checkpoint with `qwentpu.merge.load_checkpoint(path)`, which sets it and casts the rotary buffers the way the tests do (plain `from_pretrained` does neither).
 
 ## 🙏 Credits
 
