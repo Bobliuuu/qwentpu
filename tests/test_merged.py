@@ -142,7 +142,7 @@ def test_exact_for_every_trace_length(merged):
     """GEMM split-K with bf16 partial sums (cuBLAS picks it by shape and GPU) broke 288- and 320-token traces on an
     L4: the result must not depend on the trace length."""
     model, _, v0, _ = merged
-    for nvec in (1, 2, 3):
+    for nvec in (1, 2, 3, 14, 16):                       # 8x8 traces are 64 + 16n tokens: 288 and 320 are the L4 failures
         W, X = C.rand_case(rng, True, nvec); toks, want = trace(W, X)
         pred = run(model, v0, toks)
         assert [int(p) for p in pred] == want, (nvec, len(toks))
@@ -244,3 +244,22 @@ def test_hybrid_restore_makes_chip_runs_invisible(merged, tok):
         y2 = s.matvec(x2)
     ok = lambda x: np.clip(np.maximum(x @ W, 0), 0, C.AMAX)
     assert (y1 == ok(x1)).all() and (y2 == ok(x2)).all()
+
+
+def test_hybrid_restore_full_network(merged, tok):
+    """The restore only matters when Qwen's own layers run (fast=False): a chip run in the middle of a text must leave
+    the text logits identical to a session that never ran the chip."""
+    from qwentpu.driver import HybridSession
+    model, _, v0, _ = merged
+    t1 = tok(PROMPTS[2]).input_ids
+    t2 = tok(" Berlin. The capital of Italy is Rome").input_ids
+    W, X = C.rand_case(rng, True, 1)
+    ctl = HybridSession(model, v0, fast=False); ctl.text(t1); control = ctl.text(t2)
+    s = HybridSession(model, v0, fast=False); s.text(t1)
+    with s.chip():
+        s.load_weights(W); y = s.matvec(X[0])
+    got = s.text(t2)
+    assert (y == C.ref_matvec(X[0], W)).all()
+    assert torch.equal(got, control), float((got - control).abs().max())
+    with pytest.raises(RuntimeError):
+        with HybridSession(model, v0, fast=False).chip(): pass

@@ -84,6 +84,7 @@ class GraphedChip(ChipPath):
 
     @torch.no_grad()
     def tokens(self, ids, past):
+        assert past is self.past, "GraphedChip is bound to the cache it was attached to; make a new session for a new cache"
         T = ids.shape[1]
         if T not in self.graphs:
             static = torch.full((1, T), self.v0, dtype=torch.long, device=ids.device)
@@ -110,6 +111,7 @@ class TpuSession:
     @torch.no_grad()
     def feed(self, toks):
         """Feed chip tokens; returns the model's argmax next-token (as a chip token) at each position."""
+        assert not toks or 0 <= min(toks) and max(toks) < len(C.VOCAB), "feed() takes chip tokens; use HybridSession.text() for prose"
         if self.path is not None:
             from transformers import DynamicCache
             if self.past is None:
@@ -181,16 +183,18 @@ class HybridSession(TpuSession):
 
     @torch.no_grad()
     def text(self, ids):
-        out = self.m(input_ids=torch.tensor([list(ids)]), past_key_values=self.past, use_cache=True)
+        out = self.m(input_ids=torch.tensor([list(ids)], device=self.m.device), past_key_values=self.past, use_cache=True)
         self.past = out.past_key_values
         return out.logits[0, :, : self.v0].float()
 
     @contextmanager
     def chip(self):
-        from transformers import DynamicCache
-        snap = copy.deepcopy(self.past) if self.past is not None else DynamicCache(config=self.m.config)
+        if self.path is None and self.past is None:
+            raise RuntimeError("fast=False runs Qwen's layers too: feed some text() before chip() so there is a context to restore")
+        snap = copy.deepcopy(self.past) if self.past is not None else None
         try:
             yield self
         finally:
-            for i in range(self.n_qwen):
-                self.past.layers[i] = snap.layers[i]
+            if snap is not None:                       # fast path: Qwen's layers never ran, nothing to restore
+                for i in range(self.n_qwen):
+                    self.past.layers[i] = snap.layers[i]

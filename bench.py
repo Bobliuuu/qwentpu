@@ -16,7 +16,7 @@ from qwentpu.mute import fit_anti_sink
 ap = argparse.ArgumentParser(); ap.add_argument("n_mat", type=int, nargs="?", default=20)
 ap.add_argument("--device", default="cpu"); ap.add_argument("--readout", default="code", choices=["code", "lm_head"]); ap.add_argument("--vectors", type=int, default=4, help="vectors per weight load"); ap.add_argument("--full", action="store_true", help="run all layers (default: TPU layers only)"); ap.add_argument("--batch", type=int, default=1)
 a = ap.parse_args()
-tok = AutoTokenizer.from_pretrained(T.SRC); base = T.base_model().to(a.device)
+tok = AutoTokenizer.from_pretrained(T.SRC); base = T._build_base().to(a.device)
 sinks = fit_anti_sink(base, tok, T.PROMPTS); del base
 tc, sd, v0, lay, g = build_merged(T.SRC, sinks=sinks); model = instantiate(tc, sd).to(a.device)
 head = model.lm_head.weight[v0: v0 + len(C.VOCAB)]               # chip rows

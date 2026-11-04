@@ -29,6 +29,9 @@ IN_COLS = re.compile(r"(in_proj_(qkv|z|a|b)|q_proj|k_proj|v_proj|gate_proj|up_pr
 OUT_ROWS = re.compile(r"(out_proj|o_proj|down_proj)\.weight$")
 WIDE_NORMS = re.compile(r"(input_layernorm|post_attention_layernorm)\.weight$|^model\.norm\.weight$")
 TAU_TEXT, TAU_GAIN = 2.0 ** -40, 2.0 ** 60
+FIT_PROMPTS = ["The capital of France is Paris, and the capital of Germany is",
+               "def fib(n):\n    return n if n < 2 else fib(n-1) + fib(n-2)\n\nprint(fib(10))",
+               "In 1969, Apollo 11 landed on the Moon. Neil Armstrong was the first to"]   # same prompts the tests fit with
 
 
 def load(path):
@@ -133,5 +136,13 @@ if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser(); ap.add_argument("src"); ap.add_argument("dst"); ap.add_argument("--no-mute", action="store_true")
     a = ap.parse_args()
-    tc, sd, v0, lay, g = build_merged(a.src, mute_qwen=not a.no_mute)
+    sinks = None
+    if not a.no_mute:                                   # the anti-sink keys need the base model's own text queries
+        from transformers import AutoTokenizer
+        from .mute import fit_anti_sink
+        cfg, base_sd = load(a.src); btc = dict(cfg["text_config"]); btc["tie_word_embeddings"] = False
+        base_sd["lm_head.weight"] = base_sd["model.embed_tokens.weight"].clone()
+        base = instantiate(btc, base_sd, "cuda" if torch.cuda.is_available() else "cpu"); del base_sd
+        sinks = fit_anti_sink(base, AutoTokenizer.from_pretrained(a.src), FIT_PROMPTS); del base
+    tc, sd, v0, lay, g = build_merged(a.src, mute_qwen=not a.no_mute, sinks=sinks)
     save(tc, sd, v0, lay, a.dst); print("saved", a.dst, "hidden", lay.hidden)
