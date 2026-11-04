@@ -31,6 +31,7 @@ from .compiler.ir import A_BIT, A_REF, Chan, K
 # --- configuration: rows (inner dim), columns, activation bits (unsigned), weight bits (two's complement) -----
 KR = NC = AB = WB = 0
 WINDOW = 256
+SEQ = None          # optional v2 sequencer (sequencer.install) that decides the code (next-token) dims
 
 
 def configure(kr=8, nc=8, ab=3, wb=3, g=1, h=1):
@@ -126,7 +127,7 @@ def build():
     ab = [[f(f"ab{j}.{a}", lambda t, j=j, a=a: (((t - ACT0) % NOUT ** G // NOUT ** j % NOUT) >> a) & 1 if act(t) else 0)
            for a in range(AB)] for j in range(G)]
     rd = [f(f"rd{k}", lambda t, k=k: int(t == tok_read(k))) for k in range(NREAD)]
-    is_read = f("is_read", lambda t: int(t >= READ0))
+    is_read = f("is_read", lambda t: int(READ0 <= t < READ0 + NREAD))
     code = [f(f"code{i}", lambda t, i=i: 128 * (2 * ((t >> i) & 1) - 1)) for i in range(CODE)]
     ref = {0: A_REF * one, 1: A_REF * one}
 
@@ -186,8 +187,11 @@ def build():
     # One FFN per code bit rewrites the code dim; bit t*AB + a is bit a of slot t's value.
     S = 2**12
     for i in range(CODE):
-        nxt = [(1, one, one - is_read)] if (NOP >> i) & 1 else []
-        if i < H * AB:
+        if SEQ is not None:                       # v2 sequencer: the model also emits the next chip token (sequencer.py)
+            nxt = SEQ.nxt_terms(g, i, dict(one=one, f=f, rd=rd, is_read=is_read, slots=slots))
+        else:
+            nxt = [(1, one, one - is_read)] if (NOP >> i) & 1 else []
+        if SEQ is None and i < H * AB:
             t, a = divmod(i, AB); u, lo, hi = slots[t]
             if (AMAX >> a) & 1: nxt += g.terms_ge(u, AMAX, lo, hi, 1, (is_read,))
             for v in range(1, AMAX):
