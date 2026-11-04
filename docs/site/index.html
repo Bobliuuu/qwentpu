@@ -17,7 +17,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<nav><div class="wrap"><b>qwenTPU</b><a href="#why">Why</a><a href="#run">Run it</a><a href="#arch">Architecture</a><a href="#packing">Packing</a><a href="#chippath">Chip-only</a><a href="#state">State as RAM</a><a href="#hardware">Hardware</a><a href="#bugs">Bug museum</a><a href="#results">Results</a><a href="#compare">Compare</a><a href="https://github.com/Bobliuuu/qwentpu">GitHub ↗</a></div></nav>
+<nav><div class="wrap"><b>qwenTPU</b><a href="#why">Why</a><a href="#run">Run it</a><a href="#arch">Architecture</a><a href="#packing">Packing</a><a href="#chippath">Chip-only</a><a href="#state">State as RAM</a><a href="#hardware">Hardware</a><a href="#bugs">Bug museum</a><a href="#results">Results</a><a href="#v2">v2: a program</a><a href="#compare">Compare</a><a href="https://github.com/Bobliuuu/qwentpu">GitHub ↗</a></div></nav>
 
 <header class="hero"><div class="wrap">
   <h1>A <em>TPU</em> inside Qwen's weights.</h1>
@@ -141,6 +141,60 @@
   <br><div class="scroll"><table class="cmp" id="models"></table></div>
 </div></section>
 
+<section id="v2"><div class="wrap">
+  <h2>v2: a TPU that runs a program</h2>
+  <p class="sub">v1 needed the host to choose every chip token. In v2 the host builds one prompt (weights, input, entry point) and runs <code>argmax; append</code>. The model emits every <code>READ</code>, <code>ACT</code> and <code>OUTK</code> token itself, applies <code>relu</code> and clamp in its datapath, and halts. v1 is untouched.</p>
+  <div class="stats" id="v2stats"></div>
+  <h3 class="h3">Watch a digit classified, token by token</h3>
+  <p class="sub">Real traces: a 15→15→10 network with 5-bit integer weights, run as a depth-2 program through the 16-wide model (20 chip layers). Every token below was checked against the integer golden model and the circuit IR; the numbers come from <code>social/anim/trace_v2.json</code>.</p>
+  <div class="stepper" id="v2player">
+    <div class="ctrl">
+      <select id="v2digit" aria-label="digit"></select>
+      <span class="sp"></span>
+      <button class="btn" id="v2back" title="step back">◀</button>
+      <button class="btn primary" id="v2play">Play</button>
+      <button class="btn" id="v2step" title="step">▶</button>
+      <button class="btn" id="v2reset">Reset</button>
+      <label>speed <input type="range" id="v2speed" min="1" max="40" value="10"></label>
+    </div>
+    <div class="counter" id="v2counter"></div>
+    <div class="progress"><i id="v2bar"></i></div>
+    <div class="tokens" id="v2tokens" aria-label="emitted token stream"></div>
+    <div class="note" id="v2note"></div>
+    <div class="grid2">
+      <div>
+        <div class="box" style="margin-bottom:14px"><h4>Prompt (host-fed, data only)</h4><div id="v2prompt"></div></div>
+        <div class="box"><h4>The digit (8×8) and its 15 pooled inputs</h4><div class="v2img"><div id="v2img" class="v2grid"></div><div id="v2x" class="outs"></div></div></div>
+      </div>
+      <div>
+        <div class="box" style="margin-bottom:14px"><h4>Layer 1: 16 hidden activations (relu + clamp, 0..31)</h4><div id="v2h" class="v2bars"></div></div>
+        <div class="box"><h4>Layer 2: logits (OUTK values)</h4><div id="v2l" class="v2bars"></div><div class="verdict" id="v2verdict"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="h3" style="margin-top:34px">How it works</h3>
+  <div class="charts v2figs">
+    <figure><img src="../v2-arch.svg" alt="v2 architecture: prompt, model, next token, host does argmax and append"><figcaption>The host is only <code>argmax; append</code>.</figcaption></figure>
+    <figure><img src="../v2-token-timeline.svg" alt="v2 token timeline for one digit"><figcaption>Host-fed prompt, then 64 model-emitted tokens, then HALT.</figcaption></figure>
+    <figure><img src="../v2-relu-feedback.svg" alt="ReLU feedback: the sum becomes the next ACT token"><figcaption>relu and clamp happen where the adder tree already ends, at zero extra layers.</figcaption></figure>
+    <figure><img src="../v2-fixed-vs-prompt.svg" alt="what is fixed in the weights versus chosen by the prompt"><figcaption>Compiled in versus chosen by the prompt.</figcaption></figure>
+  </div>
+
+  <h3 class="h3" style="margin-top:34px">One compiled model, programs chosen by the prompt</h3>
+  <p class="sub">The same model (Dmax = 4, 4-wide, 3 chip layers) runs a depth-1, depth-2 and depth-4 network. The prompt picks the depth by choosing which block the input is written into.</p>
+  <figure><img src="../v2-program-in-prompt.svg" alt="the entry block selects the depth"><figcaption>Entry block = Dmax − depth. Cost scales with the program: 2·d·n tokens.</figcaption></figure>
+  <div class="scroll" style="margin-top:14px"><table class="cmp" id="v2depth"></table></div>
+
+  <h3 class="h3" style="margin-top:34px">Results and limits</h3>
+  <div class="scroll"><table class="cmp" id="v2res"></table></div>
+  <ul class="hon" style="margin-top:14px">
+    <li><b>Fixed in the weights:</b> array size and number format, the READ, value, READ cycle, chain-only topology, the schedule. No branches, loops or early exit.</li>
+    <li><b>No signed logits:</b> outputs are relu-clamped to 0..31, so negative scores read as 0 and ties are possible.</li>
+    <li><b>Accuracy:</b> the integer network scores <span id="v2acc"></span> on 540 held-out digits. The model reproduces the integer network exactly; the gap to the float network comes from training with 5-bit integer weights, inputs quantised to 0..12 and a fixed scale (no requantisation shift), not from the hardware.</li>
+  </ul>
+</div></section>
+
 <section id="compare"><div class="wrap">
   <h2>What is new, and what is not</h2>
   <p class="sub">The crowded part is "a machine inside Qwen". The new part is the machine's shape.</p>
@@ -167,5 +221,7 @@
 <script src="data/presets.js"></script>
 <script src="sim.js"></script>
 <script src="app.js"></script>
+<script src="data/trace_v2.js"></script>
+<script src="v2.js"></script>
 </body>
 </html>

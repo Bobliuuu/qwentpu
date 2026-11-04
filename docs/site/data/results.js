@@ -397,5 +397,72 @@ window.RESULTS = {
   "b16_full": 33074,
   "b16_chip": 125208,
   "source": "A100 same trace, 1728 positions: results/a100/ab_same_trace.jsonl (b16 values from final.jsonl / sweep.jsonl, different traces)"
+ },
+ "v2": {
+  "_note": "Only numbers that appear in results/a100/v2_prog.txt and v2_feedback.txt (Qwen3.5-0.8B, A100, bf16).",
+  "source": [
+   "results/a100/v2_prog.txt",
+   "results/a100/v2_feedback.txt"
+  ],
+  "programs": [
+   {
+    "label": "Dmax 4 · 4-wide · u3s3",
+    "dmax": 4,
+    "n": 4,
+    "bits": 3,
+    "chip_layers": 3,
+    "runs": 24,
+    "exact": 24,
+    "emitted_lens": [
+     8,
+     16,
+     24,
+     32
+    ],
+    "seconds": 3.3
+   },
+   {
+    "label": "Dmax 2 · 8-wide · u3s3",
+    "dmax": 2,
+    "n": 8,
+    "bits": 3,
+    "chip_layers": 3,
+    "runs": 12,
+    "exact": 12,
+    "emitted_lens": [
+     16,
+     32
+    ],
+    "seconds": 1.4
+   },
+   {
+    "label": "Dmax 2 · 16-wide · u5s5",
+    "dmax": 2,
+    "n": 16,
+    "bits": 5,
+    "chip_layers": 20,
+    "runs": 12,
+    "exact": 12,
+    "emitted_lens": [
+     32,
+     64
+    ],
+    "seconds": 63.5
+   }
+  ],
+  "golden_mlp": {
+   "depth2_exact": 20,
+   "depth2_of": 20,
+   "depth1_exact": 10,
+   "depth1_of": 10
+  },
+  "feedback": {
+   "array": "8×8 u5s5",
+   "tokens": 128,
+   "exact": 128,
+   "distinct_y": 21
+  },
+  "total_bad": 0
  }
-};
+}
+;

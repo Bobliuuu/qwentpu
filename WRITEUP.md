@@ -280,6 +280,62 @@ See the README for the tables. Everything below is read from the raw logs in `re
 * Coverage is limited to the machines with logs in `results/`.
 * The tweets are on X and the threads were not fetchable; qwenGPU details come from tweet text.
 
+## 8. v2: a TPU that runs a program
+
+v1 is a datapath that the host drives: it picks every CELL, ACT and READ token and relabels each OUT as the next layer's ACT. v2 keeps that datapath and moves the sequencing into the model. Files: `qwentpu/isa.py`, `program.py`, `sequencer.py`, `sequencer2.py`, `compiler/nonlin.py`; specs in `docs/V2_ISA.md` and `docs/V2_SEQUENCER.md`; diagrams in `docs/v2-*.svg` (`docs/tools/gen_svgs_v2.py`); runnable example `examples/mlp/run_v2.py`.
+
+![v2 architecture](docs/v2-arch.svg)
+
+### Design
+
+* **The host builds a prompt and runs `argmax; append` until HALT.** The prompt is data only: the weights as `CELL` tokens, the input as `ACT` tokens, and nothing else (no READ, no OUT, no op token). After it, every `READ(k)`, `ACT(row; y)` and `OUTK(j; y)` token is the model's own argmax. The host does not know the layer count, widths, or which row or column comes next.
+* **Nonlinearity in the datapath.** The adder tree already ends in a saturating requantiser. Thresholding its result gives `clip(relu(sum), 0, AMAX)` for free, and the same thresholds write the value into the id bits of the next token. A layer's output therefore is the next layer's `ACT` token, at zero extra chip layers.
+* **Self-sequencing: the program counter is the current token.** A token-only successor table (a token feature baked into the embedding, a ROM indexed by the current token) gives `ACT(s;.) -> READ(s+1-n)`, `OUTK(j;.) -> READ | HALT`, and for `READ(k)` the next token is `base(k) + y`. Layers chain block-diagonally in one array (layer b owns rows and columns `[b n, (b+1) n)`), so there are no weight banks and no mid-run reload.
+
+![token timeline](docs/v2-token-timeline.svg)
+
+### The two sequencer variants, merged into one feedback path
+
+Two designs were built independently: `nonlin.feedback_code` (a single layer's READ emits the next ACT token) and `Sequencer` (the full chain with a successor table). They are the same mechanism. `Sequencer` with the one-layer feedback schedule (`READ(k) -> ACT(k; y)` and nothing else) emits the same next token as `feedback_code` at every position and compiles to the same number of chip layers; `tests/test_sequencer2.py::test_one_feedback_path_sequencer_equals_nonlin_feedback_code` asserts it. The repo therefore has one feedback path, and `nonlin.feedback_code` remains as the reference it is checked against.
+
+![relu feedback](docs/v2-relu-feedback.svg)
+
+### Program in the prompt
+
+`ProgramMachine` (subclass of `Sequencer`, no new circuit) makes depth a prompt choice. The prompt writes layer weights into blocks `Dmax-d .. Dmax-1` and the other blocks stay 0. The input is written into the entry block `s = Dmax-d`; its last token `ACT(s n + n-1)` has the compiled successor `READ(s n)`, so the model walks blocks `s .. Dmax-1` and halts. Width is a zero-padding choice (zero columns requantise to 0). Weights, biases, depth, widths and input are prompt data. Cost scales with the program: `2*d*n` emitted tokens, not `2*Dmax*n`.
+
+![program in prompt](docs/v2-program-in-prompt.svg)
+
+![fixed vs prompt](docs/v2-fixed-vs-prompt.svg)
+
+### Results (Qwen3.5-0.8B, A100, bf16; `results/a100/v2_prog.txt`, `v2_feedback.txt`)
+
+| test | result |
+|---|---|
+| one compiled model (Dmax 4, 4-wide, u3s3, 3 chip layers), depths 1 to 4 chosen by the prompt | 24 of 24 programs exact (emitted lengths 8, 16, 24, 32) |
+| Dmax 2, 8-wide, u3s3 | 12 of 12 exact |
+| Dmax 2, 16-wide, u5s5, 20 chip layers | 12 of 12 exact (emitted lengths 32, 64) |
+| golden digit MLP (15 to 15 to 10) as a depth-2 program | logits equal the integer golden on 20 of 20 digits |
+| the same model, hidden layer alone as a depth-1 program | 10 of 10 exact |
+| ReLU feedback token, real model (8, 8, 5, 5) | 128 of 128 feedback tokens exact, 21 distinct values |
+
+The CPU path is checked too: `python examples/mlp/run_v2.py` runs the golden MLP through a numpy simulator of the compiled model, and `--ir N` through the float64 circuit IR (all exactness conditions asserted); both give the golden logits.
+
+The `.txt` logs also contain two pytest summary lines with failures (`4 failed, 1 passed, 36 deselected` in `v2_prog.txt`, `2 failed, 17 passed` in `v2_feedback.txt`) that name no tests. They are recorded as they are, are not cited above, and have not been attributed to a cause in this write-up.
+
+### Accuracy: 87.6% vs 91.1%
+
+The classifier scores 87.6% on 540 held-out digits as an integer network (the one the model runs), against 91.1% for a float MLP of the same shape on the same 15 pooled features. The model reproduces the integer network exactly, so the 3.5 point gap is not hardware error. It comes from the arithmetic the datapath imposes: weights are 5-bit integers, inputs are quantised to 0..12, and there is no requantisation shift (the scale is fixed, so every product must stay inside the 0..31 activation window). `examples/mlp/train.py` trains straight through that arithmetic (round and clamp with straight-through gradients) and picks the seed by training accuracy; an input range sweep of 3 to 31 gave 83.5% to 88.9% test accuracy.
+
+### Honest limits of v2
+
+* **Chain-only topology.** Layer b feeds layer b+1. No skip connections, no fan-out, no branches, loops or early exit.
+* **No signed logits.** Every output is relu-clamped to 0..31, so negative scores read as 0 and ties between equal outputs are possible.
+* **The schedule is compiled in.** Array size, number format, the READ, value, READ cycle and the successor table are weights. Only depth (through the entry block), widths, weights, biases and input are prompt data. A prompt-loaded instruction memory (design B in `docs/V2_SEQUENCER.md`) is designed, not built.
+* **Square block layout.** `Dmax * n` must fit the array: the 20-chip-layer 16-wide model is a 32 by 32 array at 5-bit. Usable features per layer are `n - 1` (one row carries the bias constant).
+* **The host still builds the prompt** and runs the argmax loop; the v1 `HybridSession` text path is not part of v2.
+* **GPU evidence is one machine.** The v2 results are from Qwen3.5-0.8B on one A100. The 2B and 4B models and the other GPUs have not been run for v2.
+
 ## References
 * Qwenputer: https://github.com/divagr18/qwenputer (design reference; tweet x.com/divagr1925/status/2115394340357116169)
 * qwenGPU: x.com/TheVixhal/status/2116938733815738516

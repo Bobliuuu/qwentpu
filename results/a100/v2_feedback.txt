@@ -1,5 +1,9 @@
-4 failed, 1 passed, 36 deselected in 49.29s
+# qwenTPU v2 feedback-token checks, A100, Qwen3.5-0.8B (from ~/v2_nonlin/fb.out)
 real Qwen (8, 8, 5, 5): 128 ACT feedback tokens exact; distinct y [0, 1, 2, 3, 4, 5, 7, 10, 11, 12, 13, 14, 15, 17, 18, 20, 21, 25, 29, 30, 31]
-real Qwen (8, 8, 5, 5): 128 ACT feedback tokens exact; distinct y [0, 1, 2, 3, 4, 5, 7, 10, 11, 12, 13, 14, 15, 17, 18, 20, 21, 25, 29, 30, 31]
-1 passed, 40 deselected in 13.88s
-2 failed, 17 passed in 19.53s
+# test_merged_real_qwen_feedback: 1 passed
+# Not passing, and not claimed: the four tiny stand-alone HF tests (test_hf_relu_requant_after_matmul) and
+# two v1 tests (tests/test_circuit_hf.py) fail on this box with the same Triton error,
+# "Pointer argument cannot be accessed from Triton (cpu tensor?)": the tiny model is built on the CPU and the
+# fla Gated DeltaNet kernel needs GPU tensors. v1's own test fails identically, so it is a test-setup problem,
+# not a circuit mismatch, but it has not been fixed or re-run.
+# v1 circuit IR tests on the same box: 17 passed.

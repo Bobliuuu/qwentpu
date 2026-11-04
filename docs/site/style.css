@@ -134,3 +134,24 @@ footer{border-top:1px solid var(--line);padding:30px 0 50px;color:var(--mute);fo
 .slots{display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap}
 .btn.mini{padding:2px 8px;font-size:12px;border-radius:7px}
 @media (max-width:700px){.counter{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* v2 section (v2.js) */
+.h3{font-size:19px;margin:26px 0 8px;letter-spacing:-.01em}
+.v2grid{display:grid;grid-template-columns:repeat(8,22px);gap:2px}
+.v2grid i{width:22px;height:22px;border-radius:4px;background:var(--violet)}
+.v2img{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.v2img .outs{max-width:260px}
+.v2bars{display:flex;gap:5px;align-items:flex-end;height:120px;padding-top:6px}
+.v2bars div{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font:10px ui-monospace,Menlo,monospace;color:var(--mute)}
+.v2bars div b{display:block;width:100%;max-width:26px;border-radius:4px 4px 0 0;background:var(--teal);transition:height .15s}
+.v2bars div.cur b{background:var(--amber)}
+.v2bars div.win b{background:var(--ok)}
+.v2bars div.pad b{background:var(--line)}
+.tok.k-halt{border-color:var(--mute)}
+.tok.fut{opacity:.35}
+.tok.k-actv{border-color:color-mix(in srgb,var(--violet) 55%,var(--line))}
+.v2figs{grid-template-columns:repeat(2,minmax(0,1fr))}
+.v2figs figure,#v2 figure{margin:0}
+#v2 figure img{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:14px}
+#v2 figcaption{font-size:13px;color:var(--mute);margin-top:6px}
+@media (max-width:760px){.v2figs{grid-template-columns:1fr}}
