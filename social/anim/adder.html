@@ -1,91 +1,62 @@
-<!doctype html><html><head><meta charset="utf-8"><title>adder tree</title><style>html,body{margin:0;background:#090c19}canvas{display:block}</style></head><body><canvas id="c"></canvas>
-<script src="lib.js"></script><script>
-// Adder tree: example 16x16 array, 4-bit act x 4-bit weights. Ranges are the compiler's real Horner plan (docs/adder-tree.svg); counts are example values.
-const CNT=[[1,1,0,0],[4,16,16,0],[16,16,16,0],[2,0,0,14]];   // cnt[j][b]
-const WT=[1,2,4,-8];
-const S=CNT.map(r=>r.reduce((s,c,b)=>s+c*WT[b],0));           // s_j
-const STEPS=[{j:3,zr:[-128,112],pw:[-98,112]},{j:2,zr:[-324,336],pw:[-84,100]},{j:1,zr:[-296,312],pw:[-56,72]},{j:0,zr:[-240,256],pw:null}];
-let u=null;STEPS.forEach((s,i)=>{s.zin=i?2*u:0;s.Z=i?s.zin+S[s.j]:S[s.j];s.u=s.pw?clamp(s.Z,s.pw[0],s.pw[1]):s.Z;s.hit=s.pw&&s.u!==s.Z;u=s.u});
-const caps=[[.6,4.4,'Count rows by activation bit and weight bit, in one multi-hot read.'],[4.8,7.8,'Weight the counts into digit sums. The full sum is too wide for bf16.'],[8,13.6,'Fold top-down. Clamp early: it is lossless.'],[14.2,16.6,'The code FFN thresholds the result; lm_head turns it into the token.']];
-const T0=7.4,DT=1.9;
-const GX=240,GY=250,CWd=120,CHt=54,STEP=64;
-register(17,t=>{
- header('2','THE ADDER TREE',t);
- // 1 counts
- const a1=eo(prog(t,.3,1));
- tx('1 · COUNT',80,160,{size:34,color:col.te,ls:4,alpha:a1});
- tx('cnt[j][b] = rows with act bit j AND weight bit b',80,198,{size:26,color:col.mut,weight:500,alpha:a1});
- for(let b=0;b<4;b++){tx('b='+b,GX+b*130+CWd/2,GY-14,{size:28,align:'center',color:col.mut,mono:true,alpha:a1});
-  const wa=eo(prog(t,4.6,5.2));tx((WT[b]>0?'x':'x')+WT[b],GX+b*130+CWd/2,GY+4*STEP+32,{size:30,align:'center',color:col.pu,mono:true,alpha:wa})}
- tx('weight',GX-44,GY+4*STEP+32,{size:24,align:'right',color:col.pu,alpha:eo(prog(t,4.6,5.2)),weight:500});
- for(let j=0;j<4;j++){
-  const y=GY+j*STEP;tx('j='+j,GX-24,y+CHt/2+10,{size:28,align:'right',color:col.mut,mono:true,alpha:a1});
-  for(let b=0;b<4;b++){
-   const p=eo(prog(t,1.2+j*.5+b*.1,2.6+j*.5+b*.1)),v=Math.round(CNT[j][b]*p);
-   const hot=1-prog(t,1.2+j*.5+b*.1+1.4,2.6+j*.5+b*.1+1.9);
-   const full=CNT[j][b]/16;
-   rr(GX+b*130,y,CWd,CHt,12,'#10152c',mix('#2b3566','#2fd9bb',p>0?.4+.6*hot*(p<1?1:0)+.0:0),2.5);
-   if(p>0){ctx.save();ctx.beginPath();ctx.roundRect(GX+b*130,y,CWd,CHt,12);ctx.clip();ctx.fillStyle=rgba(col.te,.22);ctx.fillRect(GX+b*130,y+CHt*(1-full*p),CWd,CHt*full*p);ctx.restore()}
-   tx(String(v),GX+b*130+CWd/2,y+CHt/2+13,{size:40,align:'center',mono:true,color:col.te,alpha:p>0?1:0});
-  }}
- // 2 digit sums
- const a2=eo(prog(t,4.4,5.2)),SX=800;
- tx('2 · DIGIT SUMS',SX,160,{size:34,color:col.pu,ls:4,alpha:a2});
- tx('s_j = Σ wt_b · cnt[j][b]',SX,198,{size:22,color:col.mut,weight:500,alpha:a2,mono:true});
- const act=STEPS.findIndex((s,i)=>t>=T0+i*DT&&t<T0+(i+1)*DT);
- for(let j=0;j<4;j++){const p=eo(prog(t,5.2+j*.45,6.0+j*.45)),y=GY+j*STEP;
-  const hi=act>=0&&STEPS[act].j===j;
-  if(p>0){ctx.save();ctx.globalAlpha=p;
-   line(GX+4*130-10,y+CHt/2,SX-8,y+CHt/2,rgba(col.pu,.5),3,[8,8]);
-   rr(SX,y,232,CHt,12,hi?rgba(col.pu,.28):'#10152c',hi?col.am:col.pu,hi?4:2.5);
-   tx('s'+j+' = '+S[j],SX+116,y+CHt/2+12,{size:36,align:'center',mono:true,color:hi?col.am:'#d9d3ff'});ctx.restore()}}
- // explanatory panel right
- const a3=eo(prog(t,5.8,6.6));
- if(a3>0){ctx.save();ctx.globalAlpha=a3;rr(1180,GY-70,680,4*STEP+80,18,'#0e1328',col.line,2);
-  tx('y = Σ 2^j · s_j',1210,GY-6,{size:44,mono:true,color:col.ink});
-  tx('too wide: bf16 only compares',1210,GY+62,{size:34,color:col.mut,weight:600});tx('small integers exactly.',1210,GY+106,{size:34,color:col.mut,weight:600});
-  tx('So never form it.',1210,GY+168,{size:38,color:col.am});
-  tx('u ← clamp(2^q·u + next digits)',1210,GY+240,{size:30,mono:true,color:col.pu,alpha:eo(prog(t,6.4,7.2))});ctx.restore()}
- // 3 Horner panels
- const PW=420,PG=36,PY=625,PH=300,P0=(W-4*PW-3*PG)/2;
- const a4=eo(prog(t,6.6,7.4));
- tx('3 · HORNER FOLD, TOP DIGIT FIRST',P0,PY-22,{size:32,color:col.am,ls:3,alpha:a4});
- STEPS.forEach((s,i)=>{
-  const x=P0+i*(PW+PG),ts=T0+i*DT,pa=eo(prog(t,ts-.4,ts+.1));
-  if(t<ts-.4)return;
-  const on=act===i;
-  ctx.save();ctx.globalAlpha=pa;
-  rr(x,PY,PW,PH,18,'#0e1328',on?col.am:col.line,on?3.5:2.5);
-  tx('step '+(i+1)+(i===3?' · last':''),x+22,PY+44,{size:32,color:on?col.am:col.mut,ls:2});
-  const expr=i?`Z = 2·(${STEPS[i-1].u}) + ${S[s.j]}`:`Z = s3 = ${S[3]}`;
-  tx(expr,x+22,PY+92,{size:32,mono:true,color:col.ink});
-  // number line
-  const lx=x+30,lw=PW-60,ly=PY+215,[z0,z1]=s.zr,M=v=>lx+(v-z0)/(z1-z0)*lw;
-  line(lx,ly,lx+lw,ly,'#3a4580',6);
-  tx(String(z0),lx,ly+44,{size:24,mono:true,color:col.mut});tx(String(z1),lx+lw,ly+44,{size:24,mono:true,color:col.mut,align:'right'});
-  if(s.pw){const wp=eo(prog(t,ts+.1,ts+.5));rr(M(s.pw[0]),ly-16,(M(s.pw[1])-M(s.pw[0]))*wp,32,8,rgba(col.gr,.22),col.gr,3);
-   tx('pass ['+s.pw[0]+', '+s.pw[1]+']',x+PW/2,ly-30,{size:26,align:'center',color:col.gr,mono:true,alpha:wp})}
-  else{tx('merged into the code FFN',x+PW/2,ly-30,{size:26,align:'center',color:col.te,weight:600,alpha:eo(prog(t,ts+.1,ts+.5))});
-   for(let k=0;k<7;k++)line(M(-216+k*72),ly-12,M(-216+k*72),ly+12,rgba(col.te,.6),3)}
-  // dot: appears at Z, slides to clamp
-  const appear=eob(prog(t,ts+.15,ts+.55)),slide=eio(prog(t,ts+.9,ts+1.35));
-  const zx=M(s.Z),ux=M(s.u),px=lerp(zx,ux,s.hit?slide:0);
-  const clampedFlash=s.hit?Math.max(0,1-Math.abs(prog(t,ts+.9,ts+1.6)*2-1)):0;
-  if(t>=ts+.15){const dc=s.hit&&slide>.5?col.pk:col.am;
-   dot(px,ly,16*clamp(appear,0,1.2),dc,26);
-   const sh=s.hit?`Z=${s.Z} → ${s.u}`:`Z=${s.Z}`;
-   tx(s.hit&&slide>.2?String(s.u):String(s.Z),px,ly-52+(s.pw?-30:0)*0,{size:30,align:'center',mono:true,color:dc,alpha:0})}
-  if(s.hit&&t>=ts+.9){const f=eo(prog(t,ts+.9,ts+1.2));
-   tx('CLAMP',x+PW/2,PY+150,{size:40,align:'center',color:col.pk,ls:4,alpha:f,glow:col.pk,gb:30});
-   tx(s.Z+' → '+s.u,x+PW/2,PY+PH-18,{size:28,align:'center',color:col.pk,mono:true,alpha:f})}
-  else if(t>=ts+.9&&s.pw){tx('inside the window',x+PW/2,PY+150,{size:30,align:'center',color:col.gr,alpha:eo(prog(t,ts+.9,ts+1.2)),weight:700})}
-  else if(t>=ts+.9){tx('Z = '+s.Z+' → code FFN',x+PW/2,PY+150,{size:30,align:'center',color:col.te,alpha:eo(prog(t,ts+.9,ts+1.2)),weight:700})}
-  ctx.restore();
- });
- STEPS.forEach((s,i)=>{const x=P0+i*(PW+PG),ts=T0+i*DT;
-  if(i<3&&t>=T0+i*DT-.4){const fp=prog(t,ts+1.35,ts+1.95);if(fp>0&&fp<=1){const e=eio(fp),fx=lerp(x+PW-60,x+PW+PG+110,e),fy=PY+84;
-    ctx.save();ctx.globalAlpha=1-prog(fp,.8,1);glow(col.am,26);rr(fx-44,fy-24,88,48,24,rgba(col.am,.25),col.am,3);noglow();tx('u='+s.u,fx,fy+11,{size:26,align:'center',mono:true,color:col.am});ctx.restore()}}
- });
- caption(caps,t);fadeEdges(t,17);
-});
+<!doctype html><html><head><meta charset="utf-8"><title>adder tree</title><style>html,body{margin:0;background:#fff}canvas{display:block}</style></head><body><canvas id="c"></canvas>
+<script src="trace.js"></script><script src="light.js"></script><script>
+// Adder tree, from REAL data: job "adder" (8x8, 4-bit activations x 4-bit weights). Counts, digit sums, Horner Z values and clamp windows come from
+// qwentpu.circuit (horner_plan) and are checked against numpy in gen_trace.py.
+const J=TRACE.jobs[3],X=J.stages[0].x,COLS=J.columns,WT=J.wt;
+const FEAT=[COLS[6],COLS[4]];              // k=6: no clamp, k=4: a clamp fires
+const LEN=12.6;
+const GX=210,GY=290,CWD=118,CHT=74;
+function column(col,v,sec){
+ const k=col.k;
+ rr(48,116,1000,62,14,C.panel,C.line,2);tx(`one column of the 8×8 job:  x = [${X.join(', ')}],  column ${k}`,70,158,{size:30,weight:700,color:C.mut});
+ const a1=eo(prog(v,0,.4));
+ tx('1 · COUNT',60,226,{size:36,weight:800,color:C.blue,alpha:a1});
+ for(let b=0;b<4;b++)tx('w bit '+b,GX+b*CWD+CWD/2,GY-14,{size:26,weight:700,align:'center',color:C.mut,alpha:a1});
+ for(let j=0;j<4;j++){tx('x bit '+j,GX-14,GY+j*(CHT+8)+CHT/2+10,{size:26,weight:700,align:'right',color:C.mut,alpha:a1});
+  for(let b=0;b<4;b++){const t0=.5+j*.45+b*.08,p=eo(prog(v,t0,t0+.9)),val=Math.round(col.cnt[j][b]*p);const x=GX+b*CWD,y=GY+j*(CHT+8);
+   rr(x+3,y,CWD-6,CHT,12,'#f0f5ff',mixc('#d0dcf5','#2563eb',p>0?.7:0),3);
+   if(p>0){ctx.save();ctx.beginPath();ctx.roundRect(x+3,y,CWD-6,CHT,12);ctx.clip();ctx.fillStyle='rgba(37,99,235,.18)';const f=col.cnt[j][b]/8*p;ctx.fillRect(x+3,y+CHT*(1-f),CWD-6,CHT*f);ctx.restore()}
+   tx(String(val),x+CWD/2,y+CHT/2+14,{size:44,weight:800,align:'center',mono:true,color:C.blue,alpha:p>0?1:0})}}
+ const wa=eo(prog(v,3,3.5));for(let b=0;b<4;b++)tx('×'+(WT[b]<0?'−':'')+Math.abs(WT[b]),GX+b*CWD+CWD/2,GY+4*(CHT+8)+30,{size:32,weight:800,align:'center',color:C.pu,mono:true,alpha:wa});
+ tx('place value',GX-14,GY+4*(CHT+8)+30,{size:26,weight:700,align:'right',color:C.pu,alpha:wa});
+ const SX=760;tx('2 · DIGIT SUMS',SX,226,{size:36,weight:800,color:C.pu,alpha:eo(prog(v,3,3.5))});
+ const act=v>=5.2?Math.min(2,Math.floor((v-5.2)/1.55)):-1;
+ for(let j=0;j<4;j++){const p=eo(prog(v,3.3+j*.3,3.8+j*.3)),y=GY+j*(CHT+8);
+  let hi=false;if(act===0&&(j===2||j===3))hi=true;if(act===1&&j===1)hi=true;if(act===2&&j===0)hi=true;
+  ctx.save();ctx.globalAlpha=p;ln(GX+4*CWD+6,y+CHT/2,SX-4,y+CHT/2,C.pu,3,[8,8]);rr(SX,y,250,CHT,12,hi?'#e7dbff':C.pul,hi?C.or:C.pu,hi?5:3);
+  tx(`s${j} = ${sgn(col.s[j])}`,SX+125,y+CHT/2+14,{size:42,weight:800,align:'center',mono:true,color:C.pu});ctx.restore()}
+ const PX=1090,PW=780;tx('3 · FOLD, TOP DIGIT FIRST',PX,226,{size:36,weight:800,color:C.or,alpha:eo(prog(v,4.6,5.1))});
+ col.steps.forEach((st,i)=>{
+  const t0=5.2+i*1.55,pa=eo(prog(v,t0-.2,t0+.2));if(pa<=0)return;
+  const y=248+i*184,h=176;ctx.save();ctx.globalAlpha=pa;
+  rr(PX,y,PW,h,18,'#fff',(act===i)?C.or:C.line,(act===i)?4:2);
+  let ex;if(i===0)ex=`Z = s2 + 2·s3 = ${col.s[2]} + 2·(${col.s[3]}) = ${st.Z}`;else ex=`Z = 2·(${col.steps[i-1].u}) + s${2-i} = ${2*col.steps[i-1].u} + (${col.s[2-i]}) = ${st.Z}`;
+  tx(`step ${i+1}`,PX+22,y+42,{size:30,weight:800,color:C.mut});tx(ex,PX+130,y+42,{size:28,weight:700,mono:true});
+  const lx=PX+40,lw=PW-80,ly=y+116;const M=z=>lx+(z-st.zlo)/(st.zhi-st.zlo)*lw;
+  const wlo=st.last?0:st.L,whi=st.last?15:st.H;
+  ln(lx,ly,lx+lw,ly,'#b5bed0',7);
+  rr(M(wlo),ly-18,Math.max(8,M(whi)-M(wlo)),36,9,C.grl,C.gr,3);
+  tx(String(st.zlo),lx,ly+40,{size:26,weight:600,mono:true,color:C.mut});tx(String(st.zhi),lx+lw,ly+40,{size:26,weight:600,mono:true,color:C.mut,align:'right'});
+  tx(st.last?'output range [0, 15]':`safe window [${wlo}, ${whi}]`,clamp(M((wlo+whi)/2),lx+130,lx+lw-130),ly+40,{size:26,weight:700,color:C.gr,align:'center'});
+  const ap=eob(prog(v,t0,t0+.4)),sl=eio(prog(v,t0+.55,t0+1.0));
+  const zc=clamp(st.Z,st.zlo,st.zhi);const target=st.last?clamp(st.Z,0,15):st.u;const cutHere=st.last?(st.Z<0||st.Z>15):st.cut;
+  const px=lerp(M(zc),M(clamp(target,st.zlo,st.zhi)),cutHere?sl:0);
+  const c=cutHere&&sl>.5?C.pk:C.or;
+  if(v>=t0)dotc(px,ly,15*clamp(ap,0,1.2),c,14);
+  if(cutHere&&v>=t0+.55){const f=eo(prog(v,t0+.55,t0+.9));
+   ctx.save();ctx.globalAlpha=f;ln(M(clamp(target,st.zlo,st.zhi)),ly-34,M(clamp(target,st.zlo,st.zhi)),ly+30,C.pk,4);tx(`CLAMP  ${st.Z} → ${target}`,PX+PW-26,y+80,{size:32,weight:800,mono:true,color:C.pk,align:'right'});ctx.restore()}
+  else if(v>=t0+.55)tx('inside',PX+PW-26,y+42,{size:30,weight:800,align:'right',color:C.gr,alpha:eo(prog(v,t0+.55,t0+.9))});
+  ctx.restore()});
+ const oa=eob(prog(v,10.1,10.7));
+ if(oa>0){ctx.save();ctx.translate(PX+PW/2,846);const sc=clamp(oa,0,1.1);ctx.scale(sc,sc);rr(-320,-34,640,68,16,C.grl,C.gr,4);tx(`OUT token = ${col.out}`+(col.raw!==col.out?`  (raw ${col.raw})`:''),0,12,{size:38,weight:800,align:'center',mono:true,color:C.gr});ctx.restore()}
+}
+const capsFor=sec=>{const o=sec*LEN;return[[o+.5,o+3.2,'Count the rows where an input bit and a weight bit are both 1.','bit-plane counts cnt[j][b] from one multi-hot read'],
+ [o+3.4,o+5.4,'Add the counts with their place values: four small sums.','digit sums s_j = Σ wt_b · cnt[j][b], never the one huge sum'],
+ [o+5.5,o+10,sec===0?'Fold the digits together, top digit first.':'The clamp stops the number growing past what bf16 can hold exactly.',sec===0?'Horner fold: Z = 2u + next digit, every Z stays inside its safe window':'saturating clamp, lossless: the lower digits can no longer change the answer'],
+ [o+10.2,o+LEN-.4,sec===0?'The final number becomes the answer token.':'Even the final number is capped to what the output can hold.','relu + clamp to [0, 15] (4-bit) → OUT token, equal to numpy']]};
+const caps=[...capsFor(0),...capsFor(1)];
+register(LEN*2,u=>{
+ header('2','THE ADDER TREE',u);const uu=Math.min(u,LEN*2-.001),sec=Math.floor(uu/LEN),v=uu%LEN;
+ column(FEAT[sec],v,sec);
+ caption(caps,u)});
 </script></body></html>

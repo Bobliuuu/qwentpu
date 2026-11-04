@@ -69,6 +69,39 @@ def run_job(name, cfg, stages, prompt, mode_note):
             "vocab": len(C.VOCAB), "match_numpy": True}
 
 
+def adder_job():
+    """8x8 u4s4 job whose adder-tree internals (bit-plane counts, digit sums, Horner steps with real clamp windows) we export."""
+    cfg = (8, 8, 4, 4); C.configure(*cfg)
+    plan = C.horner_plan(); neg = 1 << (C.WB - 1)
+    wt = [(-neg if b == C.WB - 1 else (1 << b)) for b in range(C.WB)]
+    best = None
+    for sd in range(3000):
+        rng = np.random.default_rng(7000 + sd)
+        W = rng.integers(-3, 5, (8, 8)); x = rng.integers(0, 10, 8)
+        cols = []
+        for k in range(8):
+            cnt = [[int(sum(((int(x[r]) >> j) & 1) and ((int(W[r, k]) & (C.NW - 1)) >> b) & 1 for r in range(8))) for b in range(C.WB)] for j in range(C.AB)]
+            s_ = [sum(wt[b] * cnt[j][b] for b in range(C.WB)) for j in range(C.AB)]
+            u, p, steps = 0, C.AB, []
+            for (q, zlo, zhi, L, H, npass) in plan:
+                Z = u * (1 << q) + sum(s_[p - q + i] * (1 << i) for i in range(q)); p -= q
+                if p == 0: u2 = Z; cut = False
+                else: u2 = min(max(Z, L), H); cut = u2 != Z
+                steps.append({"q": q, "Z": int(Z), "u": int(u2), "zlo": zlo, "zhi": zhi, "L": L, "H": H, "cut": bool(cut), "last": p == 0}); u = u2
+            raw = int(sum(s_[j] << j for j in range(C.AB))); out = int(min(max(u, 0), C.AMAX))
+            assert out == int(C.ref_matvec(x, W)[k]), (k, out)
+            cols.append({"k": k, "cnt": cnt, "s": s_, "steps": steps, "raw": raw, "out": out})
+        mid = sum(1 <= c["out"] <= C.AMAX - 1 for c in cols); cuts = sum(st["cut"] for c in cols for st in c["steps"])
+        clean = [c for c in cols if not any(st["cut"] for st in c["steps"]) and 1 <= c["out"] <= C.AMAX - 1]
+        cut_c = [c for c in cols if any(st["cut"] for st in c["steps"])]
+        if clean and cut_c and mid >= 4 and (best is None or cuts > best[0]): best = (cuts, W, x, cols)
+    assert best, "no suitable seed"
+    _, W, x, cols = best
+    job = run_job("adder", cfg, [(W, x)], "Adder tree internals", "full")
+    job["wt"] = wt; job["plan"] = [list(map(int, p_)) for p_ in plan]; job["columns"] = cols
+    return job
+
+
 jobs = []
 W1, x1 = pick(10, 8, 8, (-1, 2), 5)
 jobs.append(run_job("small", (8, 8, 3, 3), [(W1, x1)], "Multiply this 8x8 matrix by x", "full"))
@@ -83,6 +116,7 @@ for s in range(300):
     rng = np.random.default_rng(2000 + s); Wc = rng.integers(-1, 3, (8, 8)); yc = C.ref_matvec(ya, Wc); mid = int(((yc >= 1) & (yc <= 6)).sum())
     if best is None or mid > best[0]: best = (mid, Wc)
 jobs.append(run_job("chain", (8, 8, 3, 3), [(Wa, xa), (best[1], None)], "Chain two layers: y2 = f(W2 . f(W1 . x))", "chip"))
+jobs.append(adder_job())
 blob = json.dumps({"jobs": jobs})
 open(os.path.join(HERE, "trace.json"), "w").write(blob)
 open(os.path.join(HERE, "trace.js"), "w").write("window.TRACE = " + blob + ";\n")   # trace.js: loadable from file://

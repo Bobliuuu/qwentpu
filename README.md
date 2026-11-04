@@ -58,10 +58,14 @@ Weights live in state 🗄️, activations arrive as tokens 🎟️, products ar
 
 <p align="center"><img src="docs/life-of-a-matvec.svg" alt="life of a matvec" width="100%"></p>
 
+<p align="center"><img src="docs/anim/matvec.gif" alt="animation: weights written, activations streamed, rows summed in one read" width="100%"></p>
+
 The accumulator returns *counts* of rows with activation bit *a* and weight bit *b* set, and `y = Σ 2^a · Σ_b wt_b · cnt[a][b]` is far too wide to compare exactly in bf16. So the sum is folded top-down,
 `u ← clamp(2^q·u + next digits)`, and saturating early is lossless: once `u` is past what the remaining digits could undo, the answer is already pinned. Wider ranges clamp in several lossless passes.
 
 <p align="center"><img src="docs/adder-tree.svg" alt="carry-save adder tree" width="100%"></p>
+
+<p align="center"><img src="docs/anim/adder.gif" alt="animation: bit-plane counts folded through saturating clamps" width="100%"></p>
 
 | array | chip layers |
 |---|---|
@@ -82,7 +86,11 @@ Depth is the price of width, and the biggest wins are in skipping work, not addi
 
 <p align="center"><img src="docs/chip-path.svg" alt="chip-only path" width="100%"></p>
 
+<p align="center"><img src="docs/anim/stack.gif" alt="animation: chip tokens skip the muted Qwen layers" width="100%"></p>
+
 ## 🔬 Does it work on your hardware?
+
+<p align="center"><img src="docs/anim/hardware.gif" alt="animation: replayed token positions per machine, mismatch counter stays at 0" width="100%"></p>
 
 An exactness proof in float64 is necessary, not sufficient. Running the same suite on different GPUs found two bugs a simulation could never see: bf16 rounding of Qwen's `1/√128` query scale at 16 query rows,
 and cuBLAS split-K adding partials in bf16 on an L4 (traces of 288 and 320 tokens came back wrong; the A100 never showed it). Both are fixed and guarded by tests (see the write-up).
@@ -140,13 +148,9 @@ with s.chip():                                         # the TPU, in the same mo
 
 ## ⚠️ Limits, honestly
 
-- **Depth is the price of width.** Wide operands cost chip layers (16×16 u5s5 is 10) and packing costs layers and vocabulary; only `g2h2` on 8×8 was a clear win.
-- **No fused kernel.** CUDA graphs remove launch overhead, not the cost of the HF kernels. A purpose-built executor could go further.
+- **v1 is host-driven.** The host chooses every chip token (CELL, ACT, READ, OUT); the model only computes. There is no program in the model and no in-datapath nonlinearity. v2, in progress, is the work on that.
 - **Teacher-forced numbers are prefill throughput.** The free-running figure is the honest chained number.
-- **Memory:** a 16 GB T4 runs out of VRAM on the larger 2B arrays. 4B was run on the A100 and the Xeon, not on the 24 GB cards.
-- **Coverage is what `results/` says.** An earlier L40S, Graviton3 and Apple-silicon run was lost in a crash and is not claimed.
 - **The split-K guard is a process-wide torch flag** set by `merge.instantiate`. A saved checkpoint loaded with plain HF does not get it: set `torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = False` yourself.
-- Text-only checkpoints, inference only (no backprop, unlike TinyTPU). Merged checkpoints are built on the fly, not uploaded.
 
 ## 🙏 Credits
 

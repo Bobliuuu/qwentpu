@@ -1,99 +1,89 @@
-<!doctype html><html><head><meta charset="utf-8"><title>life of a matvec</title><style>html,body{margin:0;background:#090c19}canvas{display:block}</style></head><body><canvas id="c"></canvas>
-<script src="lib.js"></script><script>
-// Life of a matvec. Illustration with made-up small integers: 4 weight rows, 1-bit activation x = [1,0,1,1].
-const R=[[2,-1,0,3],[1,1,-2,0],[-1,2,3,1],[0,-3,1,2]],X=[1,0,1,1],SEL=[0,2,3];
-const Y=[0,1,2,3].map(c=>SEL.reduce((s,r)=>s+R[r][c],0));
-const GX=640,GY=270,CW=142,CH=104,PX=150,PY=110;
-const cx=c=>GX+c*PX,cy=r=>GY+r*PY,ACCY=790;
-const caps=[[.4,3.2,'A Gated DeltaNet head is a little RAM with a built-in adder.'],[3.4,6.2,'One-hot write: store a weight row. Its cells light up.'],[6.5,8.6,'The activation token marks which rows to read.'],[8.8,12.6,'One multi-hot read returns the exact SUM of those rows.'],[12.9,15.2,'The result is the next token. It feeds the next layer.']];
-const WT=i=>3.5+i*.7;            // write start of row i
-const ST=k=>8.9+k*1.15;          // read start of selected row k
-const FL=.6;                     // flight time
-function cell(r,c,t){
- const w=prog(t,WT(r)+FL-.1,WT(r)+FL+.25);              // lit by write landing
- const flash=1-prog(t,WT(r)+FL,WT(r)+FL+1.0);
- let sel=prog(t,7.2,7.9),dim=X[r]?0:sel;
- const x=cx(c),y=cy(r);
- const base=mix('#12172f','#15355a',w), lit=w>0?rgba(col.te,.28*flash+.0):'rgba(0,0,0,0)';
- ctx.save();ctx.globalAlpha=1-.65*dim;
- rr(x,y,CW,CH,14,base,w>0?mix('#2b3566','#2fd9bb',Math.max(flash,X[r]*sel*.9)):col.line,2.5);
- if(flash>0){glow(col.te,40*flash);rr(x,y,CW,CH,14,lit);noglow()}
- // value shown (fades in on landing); hides while its number is in flight
- const k=SEL.indexOf(r);let hide=0;
- if(k>=0){hide=prog(t,ST(k)+c*.07,ST(k)+c*.07+.15)}
- if(w>0)tx((R[r][c]>0?'+':'')+R[r][c],x+CW/2,y+CH/2+16,{size:54,align:'center',mono:true,color:mix('#2fd9bb','#f2f4ff',1-flash*.4),alpha:w*(1-hide*.85)});
- ctx.restore()}
-register(15.5,t=>{
- header('1','LIFE OF A MATVEC',t);
- // titles for grid
- const a0=eo(prog(t,.2,1));
- tx('HEAD STATE  S',GX,GY-48,{size:34,color:col.mut,ls:4,alpha:a0});
- tx('illustration: made-up small integers',W/2,938,{size:26,color:col.mut,align:'center',weight:500,alpha:a0*.8});
- for(let r=0;r<4;r++)tx('row '+r,GX-24,cy(r)+CH/2+14,{size:34,align:'right',color:col.mut,alpha:a0,mono:true});
- // empty grid base
- for(let r=0;r<4;r++)for(let c=0;c<4;c++)rr(cx(c),cy(r),CW,CH,14,'#0e1328',col.line,2,a0*.8);
- // write tokens flying in
- for(let i=0;i<4;i++){
-  const p=prog(t,WT(i),WT(i)+FL),tkOn=t>=WT(i)-.3&&t<WT(i)+FL;
-  if(t>=WT(i)-.3&&p<1){const e=eio(p);const x=lerp(70,GX-6,e),y=cy(i)+CH/2;
-   ctx.save();ctx.globalAlpha=eo(prog(t,WT(i)-.3,WT(i)))*(1-prog(p,.85,1));
-   rr(x-10,y-34,230,68,34,rgba(col.pu,.25),col.pu,3);tx('write row '+i,x+105,y+12,{size:32,align:'center',color:'#d9d3ff'});ctx.restore()}
- }
- if(t>3.2&&t<5)tx('one-hot write',70,GY+4,{size:34,color:col.pu,ls:3,alpha:prog(t,3.2,3.6)*(1-prog(t,4.6,5))});
- for(let r=0;r<4;r++)for(let c=0;c<4;c++)cell(r,c,t);
- // activation bits aligned with the rows
- const ab=eo(prog(t,6.3,7.0));
- if(ab>0){tx('x',380,GY-14,{size:40,color:col.am,align:'center',alpha:ab});tx('activation',390,GY-48,{size:26,color:col.am,align:'center',alpha:0,weight:500});
-  for(let r=0;r<4;r++){const on=X[r],y=cy(r)+CH/2;const sel=prog(t,7.2,7.9);
-   const xx=lerp(150,380,ab);
-   ctx.save();ctx.globalAlpha=ab;rr(xx-42,y-36,84,72,14,on?rgba(col.am,.22):'#10152c',on?col.am:col.line,3);
-   tx(String(on),xx,y+17,{size:54,align:'center',mono:true,color:on?col.am:col.mut});
-   if(on&&sel>0){line(xx+42,y,lerp(xx+42,GX-130,sel),y,col.am,4,[10,8],1)}
-   ctx.restore()}
-  tx('token carries x = [1,0,1,1]',380,GY+4*PY+34,{size:28,color:col.am,align:'center',alpha:ab,weight:500})}
- // accumulator
- const ac=eo(prog(t,8.2,9));
- tx('SUM  (the read)',GX,ACCY-28,{size:34,color:col.mut,ls:4,alpha:ac*(1-prog(t,12.9,13.3))});
- const part=[0,0,0,0];
- for(let c=0;c<4;c++){
-  let v=0,pulse=0;
-  SEL.forEach((r,k)=>{const t0=ST(k)+c*.07,arr=t0+.7;if(t>=arr){v+=R[r][c];pulse=Math.max(pulse,1-prog(t,arr,arr+.5))}});
-  const x=cx(c),done=prog(t,12.3,12.9);
-  ctx.save();ctx.globalAlpha=ac;
-  rr(x,ACCY,CW,CH-4,14,'#10152c',mix('#2b3566','#ffb347',Math.max(pulse,done)),3);
-  if(pulse>0||done>0){glow(col.am,30*Math.max(pulse,done));rr(x,ACCY,CW,CH-4,14,rgba(col.am,.12*Math.max(pulse,done)));noglow()}
-  tx((v>0?'+':'')+v,x+CW/2,ACCY+CH/2+12,{size:56,align:'center',mono:true,color:col.am});ctx.restore()}
- // flying numbers from selected rows down to accumulator
- SEL.forEach((r,k)=>{
-  for(let c=0;c<4;c++){const t0=ST(k)+c*.07,p=prog(t,t0,t0+.7);
-   if(p>0&&p<1){const e=eio(p),x=cx(c)+CW/2,y=lerp(cy(r)+CH/2,ACCY+CH/2-2,e);
-    const lift=Math.sin(p*Math.PI)*0;ctx.save();glow(col.am,28);
-    tx((R[r][c]>0?'+':'')+R[r][c],x+Math.sin(p*Math.PI)*(r%2?26:-26)+lift,y+14,{size:56,align:'center',mono:true,color:'#fff0d0',alpha:1-.4*p*p});ctx.restore()}}
-  const lab=prog(t,ST(k),ST(k)+.3)*(1-prog(t,ST(k)+.9,ST(k)+1.1));
-  if(lab>0)tx('+ row '+r,GX+PX*4+30,cy(r)+CH/2+14,{size:38,color:col.am,alpha:lab,mono:true});
- });
- // right column: result token and next layer
- const RX=1380;
- const nl=eo(prog(t,12.4,13.2));
- if(nl>0){
-  ctx.save();ctx.globalAlpha=nl;
-  rr(RX,GY,450,PY*3+CH,18,'#0e1328',col.line,2.5);
-  tx('LAYER  n+1',RX+225,GY+52,{size:34,align:'center',color:col.mut,ls:4});
-  tx('reads the token',RX+225,GY+104,{size:30,align:'center',color:col.mut,weight:500});
-  const arr=prog(t,14.0,14.7);
-  rr(RX+20,GY+150,410,100,18,mix('#12172f','#3a2a0a',arr),mix('#2b3566','#ffb347',arr),3);
-  tx('x = ['+Y.join(', ')+']',RX+225,GY+214,{size:36,align:'center',mono:true,color:lerp(0,1,arr)>0?col.am:col.mut,alpha:arr});
-  if(arr===0)tx('waiting...',RX+225,GY+214,{size:34,align:'center',color:col.mut,weight:500});
-  tx('its input',RX+225,GY+300,{size:30,align:'center',color:col.mut,weight:500,alpha:arr});
-  ctx.restore()}
- // result token flight
- const fp=prog(t,12.9,14.2);
- if(fp>0){const e=eio(fp),x=lerp(cx(0),RX+20,e),y=0;
-  const w=lerp(CW*4+PX*3-PX*3-12,410,e);const h=lerp(CH-4,100,e);const xx=lerp(cx(0),RX+20,e),yy=lerp(ACCY,GY+150,e);
-  ctx.save();ctx.globalAlpha=1-prog(t,14.0,14.4);glow(col.am,30);rr(xx,yy,w,h,18,rgba(col.am,.2),col.am,4);noglow();
-  tx('y = ['+Y.join(', ')+']',xx+w/2,yy+h/2+14,{size:lerp(46,36,e),align:'center',mono:true,color:col.am});ctx.restore()}
- if(t>12.3&&t<13)tx('result token: y',cx(0)+PX*2-10,ACCY+CH+46,{size:34,align:'center',color:col.am,alpha:prog(t,12.3,12.7)});
- if(t>12.9)tx('exact in bf16',RX+225,GY+PY*3+CH+54,{size:30,align:'center',color:col.mut,weight:500,alpha:prog(t,13.2,13.6)*(1-prog(t,14.4,14.8))});
- caption(caps,t);fadeEdges(t,15.5);
-});
+<!doctype html><html><head><meta charset="utf-8"><title>life of a matvec</title><style>html,body{margin:0;background:#fff}canvas{display:block}</style></head><body><canvas id="c"></canvas>
+<script src="trace.js"></script><script src="light.js"></script><script>
+// Life of a matvec, driven by the REAL trace of job "small" (gen_trace.py): 8x8 u3s3, tokens, weights, x and OUT values from the circuit.
+const J=TRACE.jobs[0],S0=J.stages[0],Wm=S0.W,X=S0.x,N=8;
+const CELLS=J.tokens.filter(t=>t.k==='CELL'),ACTS=J.tokens.filter(t=>t.k==='ACT'),READS=J.tokens.filter(t=>t.k==='READ');
+const T_CELL=.9,DT_CELL=.06,T_ACT=5.3,DT_ACT=.5,T_READ=9.9;
+const RD=[3.0,2.4,1.8,.8,.8,.8,.8,.8];const RS=[];{let t=T_READ;RD.forEach(d=>{RS.push(t);t+=d})}const T_END=RS[7]+RD[7];
+const caps=[[.6,4.9,'Each weight is written into a memory cell, one token per cell.','64 CELL tokens · one-hot writes into Gated DeltaNet state'],
+ [5.1,9.5,'The input numbers stream in, one token each.','8 ACT tokens · x = ['+X.join(', ')+']'],
+ [9.7,14.6,'A column is read out and summed in ONE step.','READ token · a multi-hot read returns the exact sum of the chosen rows'],
+ [14.8,T_END+.2,'Negatives become 0 and big sums stop at 7.','relu + clamp to [0, 7] for 3-bit activations · OUT token'],
+ [T_END+.5,T_END+3.2,'The answer is the next token, so it feeds the next layer.','y equals numpy exactly · layers chain through the model’s own tokens']];
+const CS=74,GX=250,GY=176,OY=792;
+const cx=c=>GX+c*CS,cy=r=>GY+r*CS;
+register(T_END+3.6,u=>{
+ header('1','LIFE OF A MATVEC',u);
+ const a0=eo(prog(u,.1,.7));
+ tx('weights W (8×8)',GX,GY-30,{size:32,weight:700,color:C.mut,alpha:a0});tx('x',190,GY-30,{size:34,weight:800,color:C.or,align:'center',alpha:a0});
+ // grid
+ let hotRow=-1,hotCol=-1,tok=null,tokp=0;
+ // current READ column
+ let rk=-1,rv=0;for(let k=0;k<8;k++)if(u>=RS[k]&&u<RS[k]+RD[k]){rk=k;rv=(u-RS[k])/RD[k]}
+ const lastRead=u>=RS[7]+RD[7]?7:-1;
+ // activation hot row
+ ACTS.forEach((t,s)=>{const t0=T_ACT+s*DT_ACT;if(u>=t0+.25&&u<t0+.7)hotRow=s});
+ for(let r=0;r<N;r++)for(let c=0;c<N;c++){const i=r*N+c,t0=T_CELL+i*DT_CELL,w=Wm[r][c];const on=u>=t0+.3,fl=on?Math.max(0,1-(u-t0-.3)/.5):0;
+  let fill=C.gyl,col=C.mut;if(on){fill=w===0?'#eef2fb':(w>0?mixc('#e6eefc','#7ea3f0',clamp(Math.abs(w)/3,.2,1)):mixc('#efe6fb','#a78bf0',clamp(Math.abs(w)/3,.2,1)));col=C.ink}
+  if(fl>0)fill=mixc(fill,C.blue,fl*.8);
+  const hot=r===hotRow||c===rk;
+  rr(cx(c)+2,cy(r)+2,CS-4,CS-4,10,hot?mixc(fill,'#ffc27a',.65):fill,hot?C.or:(fl>0?C.blue:'#fff'),hot?4:2);
+  if(on)tx(sgn(w).replace('+',''),cx(c)+CS/2,cy(r)+CS/2+13,{size:38,weight:800,align:'center',mono:true,color:fl>.5?'#fff':col})}
+ // CELL tokens flying in
+ CELLS.forEach((t,i)=>{const t0=T_CELL+i*DT_CELL,p=prog(u,t0,t0+.3);if(p>0&&p<1){const r=Math.floor(i/N),c=i%N;const x=lerp(70,cx(c)+CS/2,eio(p)),y=lerp(cy(r)+CS/2,cy(r)+CS/2,p);
+  ctx.save();ctx.globalAlpha=Math.min(1,p*5);rr(x-52,y-21,104,42,21,C.bluel,C.blue,3);tx('CELL',x,y+10,{size:26,weight:800,align:'center',color:C.blue});ctx.restore()}});
+ // activation boxes + flying ACT tokens
+ ACTS.forEach((t,s)=>{const t0=T_ACT+s*DT_ACT,p=prog(u,t0,t0+.3),v=X[s];
+  if(p>0&&p<1){const x=lerp(40,190,eio(p));ctx.save();rr(x-52,cy(s)+CS/2-21,104,42,21,C.orl,C.or,3);tx('ACT',x,cy(s)+CS/2+10,{size:26,weight:800,align:'center',color:C.or});ctx.restore()}
+  const on=p>=1;rr(150,cy(s)+2,80,CS-4,10,on?C.orl:C.panel,on?C.or:C.line,on?3:2);if(on)tx(String(v),190,cy(s)+CS/2+13,{size:40,weight:800,align:'center',mono:true,color:C.or});
+  if(hotRow===s){const q=prog(u,t0+.25,t0+.7);ln(GX,cy(s)+CS/2,lerp(GX,GX+8*CS,eio(q)),cy(s)+CS/2,C.or,6);dotc(lerp(GX,GX+8*CS,eio(q)),cy(s)+CS/2,9,C.or,14)}});
+ // output row
+ tx('y',190,OY+CS/2+14,{size:38,weight:800,align:'center',color:C.gr,alpha:a0});
+ for(let c=0;c<N;c++){const done=u>=RS[c]+RD[c]*.86,cur=c===rk;const pp=cur?prog(rv,.86,1):(done?1:0);
+  const sh=cur&&rv<.72?Math.round(READS[c].raw[0]*eio(prog(rv,.1,.62))):null;
+  rr(cx(c)+2,OY,CS-4,CS-8,10,done||pp>0?C.grl:(cur?C.orl:C.panel),done||pp>0?C.gr:(cur?C.or:C.line),cur?4:2);
+  if(done||pp>0)tx(String(READS[c].out[0]),cx(c)+CS/2,OY+CS/2+8,{size:42,weight:800,align:'center',mono:true,color:C.gr,alpha:done?1:pp});
+  else if(sh!==null)tx(String(sh),cx(c)+CS/2,OY+CS/2+8,{size:34,weight:800,align:'center',mono:true,color:C.or})}
+ // right panel
+ const PX=930,PW=900;
+ rr(PX-30,126,PW+60,760,22,C.panel,C.line,2);
+ // token line
+ let desc='';
+ if(u<T_ACT-.2){const i=Math.min(63,Math.max(0,Math.floor((u-T_CELL)/DT_CELL)));if(u>=T_CELL){const t=CELLS[i];desc=`token ${t.id}  CELL  row ${t.r}, column ${t.c}, weight ${t.w}`}}
+ else if(u<T_READ-.2){const s=Math.min(7,Math.max(0,Math.floor((u-T_ACT)/DT_ACT)));if(u>=T_ACT){const t=ACTS[s];desc=`token ${t.id}  ACT  x[${t.s}] = ${t.v[0]}`}}
+ else if(rk>=0){const t=READS[rk];desc=`token ${t.id}  READ  column ${rk}`+(rv>.86?`  →  OUT ${t.out[0]}`:'')}
+ if(desc)tx(desc,PX,176,{size:30,weight:700,mono:true,color:C.ink});
+ if(rk>=0||u>=T_END){
+  const k=rk>=0?rk:7,t=READS[k],v=rk>=0?rv:1;const fin=u>=T_END;
+  if(!fin){
+   tx(`Column ${k}:  x × w`,PX,250,{size:40,weight:800,color:C.or});
+   let run=0;const r0=Math.min(.12,.4/RD[k]),rs=.5/8;
+   for(let r=0;r<N;r++){const ta=r0+r*rs,al=eo(prog(v,ta,ta+.06)),p=X[r]*Wm[r][k];if(al>0)run+=p*(v>=ta+.06?1:0);
+    const y=300+r*52;ctx.save();ctx.globalAlpha=al;
+    tx(`${X[r]}  ×  ${Wm[r][k]<0?'−':''}${Math.abs(Wm[r][k])}`,PX+90,y+34,{size:36,weight:700,mono:true,color:C.ink,align:'left'});
+    tx('=',PX+370,y+34,{size:36,weight:700,mono:true,color:C.mut});
+    tx(sgn(p).replace('+','+'),PX+520,y+34,{size:38,weight:800,mono:true,color:p>0?C.blue:(p<0?C.pu:C.mut),align:'right'});ctx.restore();
+    if(al>0&&r<N&&r===Math.min(N-1,Math.floor((v-r0)/rs))&&v<r0+8*rs)rr(PX+60,y,520,46,10,null,C.or,3)}
+   // running total
+   const tot=v<r0+8*rs+.07?run:t.raw[0];
+   const ty=730;ln(PX+60,ty-12,PX+580,ty-12,C.ink,3);
+   tx('Σ',PX+90,ty+44,{size:44,weight:800,color:C.ink});tx(sgn(tot),PX+520,ty+44,{size:50,weight:800,mono:true,color:C.or,align:'right'});
+   // clamp / out
+   const q=eo(prog(v,.7,.86));
+   ctx.save();ctx.globalAlpha=q;rr(PX+620,540,260,150,18,C.grl,C.gr,3);tx('clamp to 0–7',PX+750,590,{size:30,weight:700,align:'center',color:C.gr});
+   tx(String(t.out[0]),PX+750,660,{size:76,weight:800,align:'center',mono:true,color:C.gr});ctx.restore();
+   if(t.raw[0]!==t.out[0]&&q>0){ctx.save();ctx.globalAlpha=q;tx(`${sgn(t.raw[0])} → ${t.out[0]}`,PX+750,720,{size:30,weight:800,align:'center',mono:true,color:C.pk});ctx.restore()}
+  }else{
+   const a=eo(prog(u,T_END,T_END+.5));ctx.save();ctx.globalAlpha=a;
+   tx('Result',PX,260,{size:42,weight:800,color:C.gr});
+   tx('circuit y = ['+S0.y.join(', ')+']',PX,340,{size:38,weight:700,mono:true});
+   tx('numpy   y = ['+S0.numpy.join(', ')+']',PX,396,{size:38,weight:700,mono:true,color:C.mut});
+   rr(PX,430,520,70,16,C.grl,C.gr,3);tx('✓  identical',PX+260,480,{size:42,weight:800,align:'center',color:C.gr});
+   const b=eo(prog(u,T_END+1.1,T_END+1.8));ctx.globalAlpha=b;rr(PX,560,640,150,18,'#fff',C.blue,3);tx('Next layer',PX+30,610,{size:34,weight:800,color:C.blue});tx('reads y as its input x',PX+30,660,{size:34,weight:600,color:C.ink});
+   ln(cx(4),OY+CS+4,cx(4),OY+CS+4,C.blue,1);
+   ctx.restore();
+   const arr=eo(prog(u,T_END+.9,T_END+1.4));ctx.save();ctx.globalAlpha=arr;ln(GX+8*CS+10,OY+CS/2,PX-6,OY+CS/2,C.blue,6);ctx.restore()}
+ }else if(u>=T_ACT-.2&&u<T_READ){tx('x · W: every row of x meets its row of W',PX,300,{size:36,weight:700,color:C.mut,alpha:eo(prog(u,T_ACT,T_ACT+.5))})}
+ else if(u<T_ACT-.2){tx('The array holds the weights and never moves them.',PX,300,{size:36,weight:700,color:C.mut,alpha:eo(prog(u,1.5,2))});tx('weight-stationary',PX,350,{size:30,weight:500,color:C.mut,alpha:eo(prog(u,1.5,2))})}
+ caption(caps,u)});
 </script></body></html>
