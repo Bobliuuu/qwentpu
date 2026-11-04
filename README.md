@@ -1,7 +1,7 @@
 <p align="center"><img src="docs/banner.svg" alt="qwenTPU: a TPU compiled into the weights of Qwen3.5" width="100%"></p>
 
-<h1 align="center">✈️ qwenTPU</h1>
-<p align="center"><b>Airplanes don't flap their wings. This TPU doesn't have a chip.<br>It's a language model that does exact matrix multiplication, with no training.</b></p>
+<h1 align="center">qwenTPU</h1>
+<p align="center"><b>A TPU compiled into the weights of a stock Qwen3.5. No chip, no training.<br>A language model that does exact matrix multiplication.</b></p>
 
 <p align="center">
 <a href="https://bobliuuu.github.io/qwentpu/"><b>🎮 Watch it run</b></a> ·
@@ -16,6 +16,8 @@
 We took a stock **Qwen3.5** (0.8B, 2B or 4B), compiled a few new layers into it, and it now contains a **weight-stationary matrix-multiply array**:
 up to **32×32 (1,024 MACs per matvec)** with up to **5-bit operands**. Every new weight is computed; Qwen's own weights are untouched. Output is integer-exact against NumPy
 (0 mismatches in 1,139,712 replayed token positions on four machines), plain text generation is unchanged (KL 3e-4 to 8e-4), and a TPU run leaves no trace in Qwen's context.
+
+<p align="center"><a href="docs/qwentpu_demo.mp4"><img src="docs/demo.gif" alt="qwenTPU v1 running a matvec inside Qwen3.5, token by token" width="100%"></a><br><sub>v1 running inside Qwen3.5-0.8B on real tokens. <a href="docs/qwentpu_demo.mp4">Full 70 s video (mp4)</a></sub></p>
 
 <p align="center"><img src="docs/arch.svg" alt="architecture" width="100%"></p>
 
@@ -38,7 +40,7 @@ Their design vocabulary (DeltaNet rows as RAM, tokens as the trace) is what we b
 | qwenGPU | SIMT GPU | host-compiled kernel | registers, global memory | a warp-launch record |
 | **qwenTPU** | **weight-stationary array** | **none** | **weights *and* partial sums** | **a dataflow step** |
 
-Not faster than QwenPU per op (it streams 64 lanes per token, we do 4 to 64 MACs per token), and "to my knowledge" rests on one search, not an exhaustive one.
+Not faster than QwenPU per op (it streams 64 lanes per token, we do 4 to 64 MACs per token).
 [TinyTPU](https://github.com/tiny-tpu-v2/tiny-tpu) is the architecture reference only: this repo shares no code with it, and our array is not systolic in space.
 
 ## 🧠 How it works

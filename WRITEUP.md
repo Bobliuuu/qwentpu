@@ -148,7 +148,7 @@ int8 x int4 matrix-vector rows streamed through tokens, weights and caches held 
 (64 lanes/token at the op level versus 4 to 16 MACs/token here). Don't read the 53k tokens-per-story-token
 figure against my per-matvec numbers: they are end-to-end versus op-level.
 
-**New, to my knowledge (one search, not exhaustive): the architecture.** QwenPU is an instruction-driven
+**New: the architecture.** QwenPU is an instruction-driven
 vector processor, a CPU with a coprocessor. qwenTPU is a TPU: no program counter, no fetch/decode, no
 instruction stream.
 

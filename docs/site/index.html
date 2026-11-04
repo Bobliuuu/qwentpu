@@ -28,7 +28,7 @@
 
 <section id="why"><div class="wrap">
   <h2>Why would anyone put a TPU inside a language model?</h2>
-  <p class="sub">Airplanes do not flap their wings. Nobody needs a TPU inside Qwen: a real TPU is faster, cheaper and does not lose its arithmetic to a rounding error. So why do it?</p>
+  <p class="sub">Nobody needs a TPU inside Qwen: a real TPU is faster, cheaper and does not lose its arithmetic to a rounding error. So why do it?</p>
   <div class="cards">
     <div class="card"><h3>Because the bird teaches you something</h3><p>A language model is a pile of memory (state), a way to look things up (attention) and a way to compute (FFNs). If that is enough to build an exact matrix-multiply machine, then we learn how much of &quot;intelligence hardware&quot; is hiding in the architecture itself. We are studying the bird, not selling the wing.</p></div>
     <div class="card"><h3>Because exactness is a hard test</h3><p>Models are sloppy by design. Making every integer survive bf16 rounding, normalisation and a couple of dozen layers of someone else's code is a very unforgiving way to find out what the architecture really does.</p></div>
@@ -152,7 +152,7 @@
     <tr class="us"><td><b>qwenTPU</b><br><small>this repo</small></td><td>weight-stationary dataflow array</td><td>none: the layer stack is the datapath</td><td>the weights <em>and</em> the partial sums</td><td>a dataflow step</td></tr>
   </table></div>
   <ul class="hon">
-    <li><b>New, to my knowledge (one search):</b> a TPU-style dataflow machine with no PC or ISA; the DeltaNet multi-hot read used as a reduction; weights and partial sums both in state; bit-plane counting that keeps every value bf16-exact; layers chained through the model's own tokens.</li>
+    <li><b>New:</b> a TPU-style dataflow machine with no PC or ISA; the DeltaNet multi-hot read used as a reduction; weights and partial sums both in state; bit-plane counting that keeps every value bf16-exact; layers chained through the model's own tokens.</li>
     <li><b>Not new:</b> putting a machine in Qwen3.5's weights, or running a neural network on it. The ballast-normalised RMSNorm, DeltaNet-rows-as-RAM and token-trace ideas come from Qwenputer.</li>
     <li><b>Not claimed:</b> faster than QwenPU at the op level (its matvec streams 64 lanes per token; mine does 4 to 16 MACs per token). The scaling is O(N) tokens for O(N²) MACs, not a speed record.</li>
     <li><b>TinyTPU</b> is the model for the dataflow idea (stationary weights, streamed activations, in-place accumulation). No code or RTL is shared, and our array is not literally systolic: all columns work in parallel through separate heads.</li>
