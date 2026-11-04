@@ -1,0 +1,34 @@
+<!doctype html><html><head><meta charset="utf-8"><title>v2 relu feedback</title><style>html,body{margin:0;background:#fff}canvas{display:block}</style></head><body><canvas id="c"></canvas>
+<script src="light.js"></script><script src="trace_v2.js"></script><script src="v2common.js"></script><script>
+// Digit 0 of golden.npz, layer 1: real sums (x@W1 + bias) -> clamp(relu(.)) -> the ACT token the model emits (ids asserted in gen_trace_v2.py).
+const d=D2.digits[0],N=15,CW=106,X0=282;
+const caps=[[.4,5.6,'Each column adds up its inputs.','Σ x·w + bias, exact integers, one READ per column'],
+ [5.8,10.6,'Negative sums are cut to zero, big ones are capped.','ReLU + clamp to 0..31 happen in the datapath'],
+ [10.8,16.0,'The cleaned-up value is written out as the next input token.','ACT k = clamp(relu(y)): the model emits it, no host step'],
+ [16.2,22.2,'That token goes straight into layer 2. Zero extra layers.','clamp(relu(y)) → ACT token at zero extra layers · 128 of 128 feedback tokens exact on the real model (8×8, 5-bit)']];
+const ROW=[{y:150,t:['sum Σ']},{y:350,t:['ReLU +','clamp']},{y:555,t:['ACT token','emitted']}];
+function cell(x,y,w,h,fill,bd,txt,col,sz=34){rr(x,y,w,h,12,fill,bd,3);tx(txt,x+w/2,y+h/2+sz*.35,{size:sz,weight:800,align:'center',mono:true,color:col})}
+register(22.6,u=>{header('v2','RELU + CLAMP FEEDBACK',u);
+ ROW.forEach((r,i)=>{r.t.forEach((s,q)=>tx(s,60,r.y+50+q*38+(r.t.length>1?0:20),{size:32,weight:800,color:[C.or,C.pk,C.blue][i],alpha:eo(prog(u,i*5.2-.2,i*5.2+.4)+(i?0:1))}));if(i===1)tx('pink = cut',60,r.y+150,{size:28,weight:700,color:C.pk,alpha:prog(u,6.4,6.9)})});
+ // layer-2 receiver
+ const ra=eo(prog(u,13.0,13.6));ctx.save();ctx.globalAlpha=ra;rr(X0,790,N*CW-8,86,18,'#eef4ff',C.blue,3);tx('layer 2 reads these as its input rows',X0+(N*CW-8)/2,846,{size:38,weight:800,align:'center',color:C.blue});tx('0 extra',60,826,{size:44,weight:800,color:C.gr});tx('layers',60,868,{size:44,weight:800,color:C.gr});ctx.restore();
+ for(let k=0;k<N;k++){const x=X0+k*CW,raw=d.raw1[k],y=d.y1[k];
+  // 1: sums appear one by one
+  const t1=1.0+k*.22,a1=prog(u,t1,t1+.35),cnt=eio(prog(u,t1,t1+.5));
+  if(a1>0){ctx.save();ctx.globalAlpha=a1;cell(x,ROW[0].y,CW-8,100,raw<0?C.pkl:C.orl,raw<0?C.pk:C.or,String(Math.round(raw*cnt)),raw<0?C.pk:C.or,raw<-99?30:34);ctx.restore()}
+  // 2: relu/clamp
+  const t2=6.0+k*.2,a2=prog(u,t2,t2+.4),sw=prog(u,t2+.35,t2+.75);
+  if(a2>0){ctx.save();ctx.globalAlpha=a2;const v=sw<.5?raw:y,pk=raw<0;cell(x,ROW[1].y,CW-8,100,pk?C.pkl:C.grl,pk?C.pk:C.gr,String(v),pk?C.pk:C.gr,(sw<.5&&raw<-99)?30:34);ctx.restore();
+   if(sw>0&&sw<.5||a2>.5)arrow(x+CW/2-4,ROW[0].y+104,x+CW/2-4,ROW[1].y-8,C.gy,3)}
+  // 3: ACT token chips
+  const t3=11.0+k*.22,a3=prog(u,t3,t3+.4);
+  if(a3>0){ctx.save();ctx.globalAlpha=a3;const lift=(1-eo(a3))*-18;rr(x,ROW[2].y+lift,CW-8,150,14,C.bluel,C.blue,3);tx('ACT '+k,x+CW/2-4,ROW[2].y+lift+54,{size:28,weight:800,align:'center',color:C.blue,ls:-1.2});tx('='+y,x+CW/2-4,ROW[2].y+lift+112,{size:38,weight:800,align:'center',mono:true,color:C.ink});ctx.restore();
+   arrow(x+CW/2-4,ROW[1].y+104,x+CW/2-4,ROW[2].y-8,C.gy,3)}
+  // 4: fly into layer 2
+  const t4=14.0+k*.12,a4=prog(u,t4,t4+.7);if(a4>0&&a4<1){const e=eio(a4);dotc(x+CW/2-4,lerp(ROW[2].y+75,796,e),13,C.blue,14)}
+ }
+ // counter
+ const ca=eo(prog(u,16.4,17.0));ctx.save();ctx.globalAlpha=ca;rr(X0,880,N*CW-8,0,0);ctx.restore();
+ if(u>16.3){const e=eob(prog(u,16.3,17.0));ctx.save();ctx.translate(W-170,258);ctx.scale(clamp(e,0,1.05),clamp(e,0,1.05));ctx.restore()}
+ caption(caps,u)});
+</script></body></html>

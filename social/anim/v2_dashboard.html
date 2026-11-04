@@ -1,0 +1,210 @@
+<!doctype html><html><head><meta charset="utf-8"><title>qwenTPU v2 dashboard</title><style>html,body{margin:0;background:#fff}canvas{display:block}</style></head><body><canvas id="c"></canvas>
+<script src="light.js"></script><script src="trace_v2.js"></script><script src="v2common.js"></script>
+<script>
+// v2 master demo. Light dashboard style of dashboard.html. Every digit, weight, sum, token and logit comes from trace_v2.js
+// (gen_trace_v2.py: golden.npz + isa.run + the repo's CPU circuit-IR sequencer, all asserted equal). Numbers shown on screen
+// are the README / results ones: 535 prompt tokens, 65 emitted, 20 of 20, 87.6% integer vs 91.1% float on 540 held-out digits,
+// Qwen3.5-0.8B on an A100. The video animates the real traces; it is not a live capture.
+const NTOK=65,PROMPT=D2.prompt_len,CL=D2.chip_layers;
+const SPEC=[{i:0,pe:5.2,dt:.22,vt:3.2},{i:1,pe:1.9,dt:.085,vt:2.3},{i:2,pe:1.3,dt:.05,vt:2.1},{i:3,pe:1.3,dt:.05,vt:2.1},{i:4,pe:1.3,dt:.05,vt:2.1}];
+const INTRO=5.5,SUMM=17;
+const SC=[{id:'intro',t0:0,t1:INTRO}];let T=INTRO;SPEC.forEach((s,k)=>{s.dur=s.pe+NTOK*s.dt+s.vt;SC.push({id:'digit',k,t0:T,t1:T+s.dur});T+=s.dur});SC.push({id:'sum',t0:T,t1:T+SUMM});
+const DUR=T+SUMM;
+const ACC_Y=676,GX=1300,GY=190,CS=30;
+function intro(u){
+ const f=a=>eo(prog(u,a,a+.45)),out=1-prog(u,4.9,5.4);ctx.save();ctx.globalAlpha=out;
+ tx('v1: the host picks every token.',W/2,300,{size:76,weight:800,align:'center',color:C.mut,alpha:f(.2)});
+ tx('v2: the model does.',W/2,420,{size:96,weight:800,align:'center',color:C.ink,alpha:f(1.2)});
+ const q=eob(prog(u,2.4,3.1));if(q>0){ctx.save();ctx.translate(W/2,600);ctx.scale(.7+.3*q,.7+.3*q);ctx.globalAlpha=clamp(q,0,1);tx('qwenTPU v2',0,0,{size:190,weight:800,align:'center',color:C.blue});ctx.restore()}
+ tx('A TPU that runs a program, inside Qwen3.5-0.8B.',W/2,700,{size:46,weight:600,align:'center',color:C.mut,alpha:f(3.2)});
+ tx('Prompt: weights, input, program. After that the model writes every token.',W/2,770,{size:38,weight:600,align:'center',color:C.ink,alpha:f(3.8)});
+ ctx.restore()}
+// ---- per-digit state ----------------------------------------------------------------------------------
+function dstate(sp,d,u){
+ const s={pe:sp.pe,tp:(u-sp.pe)/sp.dt};const t=s.tp;s.j=t<0?-1:Math.min(NTOK-1,Math.floor(t));s.p=t<0?0:(t>=NTOK?1:t-s.j);s.n=t<0?0:Math.min(NTOK,s.j+1);
+ s.fin=t>=NTOK;s.prompt=t<0;s.tok=s.j>=0?tokAt(d,s.j):null;s.pu=clamp(u/sp.pe);return s}
+function accVal(d,layer,c,j,p,tk){ // value shown in accumulator c: returns {txt, state}
+ const raw=layer===0?d.raw1[c]:d.raw2[c],y=layer===0?d.y1[c]:d.logits[c]!==undefined&&c<10?d.logits[c]:0;
+ return {raw,y:Math.min(Math.max(raw,0),31)}}
+function leftCol(sp,d,st,u,digitNo){
+ tx('qwenTPU',60,118,{size:92,weight:800,color:C.ink});tx('v2',516,118,{size:92,weight:800,color:C.blue});
+ tx('A TPU that runs a program,',62,164,{size:27,weight:500,color:C.mut});tx('inside Qwen3.5-0.8B. No training.',62,198,{size:27,weight:500,color:C.mut});
+ // image + pooled input card
+ rr(60,224,560,262,16,C.panel,C.line,2);
+ const ia=eo(prog(u,.15,.6)),rv=prog(u,.2,1.0*Math.min(1,sp.pe/3));
+ tx(`DIGIT ${digitNo} OF 5 · HELD-OUT TEST SET`,82,254,{size:21,weight:700,color:C.mut,ls:1.5});
+ drawImg(d.img,82,272,26,sp.pe>3?rv:Math.min(1,u*3),ia);
+ tx('8×8 pixels',82,502-4,{size:22,weight:600,color:C.mut,alpha:0});
+ const pa=prog(u,sp.pe>3?1.0:.3,sp.pe>3?2.2:.9);ctx.save();ctx.globalAlpha=eo(pa);
+ tx('pool',330,350,{size:22,weight:700,color:C.mut,align:'center'});tx('2×2',330,376,{size:22,weight:700,color:C.mut,align:'center'});ln(300,394,356,394,C.mut,3);ln(344,386,358,394,C.mut,3);ln(344,402,358,394,C.mut,3);ctx.restore();
+ drawPool(d.x,374,274,50,pa,(st.prompt&&u>sp.pe*.5&&u<sp.pe*.8)?.6:0);
+ tx('8×8 pixels',186,486-0,{size:22,weight:600,color:C.mut,align:'center',alpha:0});
+ // prompt
+ const ppa=eo(prog(u,sp.pe>3?2.0:.5,sp.pe>3?2.6:.9));ctx.save();ctx.globalAlpha=ppa;rr(60,502,560,100,16,C.panel,C.line,2);
+ tx('PROMPT',82,530,{size:21,weight:700,color:C.mut,ls:1.5});tx('classify this digit',82,570,{size:36,weight:800});
+ tx('+ weights, x, program',600,530,{size:21,weight:600,color:C.mut,align:'right'});ctx.restore();
+ // program
+ const prog_=['LOAD weights','LOAD x','MATMUL','RELU','MATMUL','OUT','HALT'];
+ let hot=[];if(st.prompt)hot=[u<sp.pe*.55?0:1];else if(st.tok){const j=st.j,t=st.tok;
+  if(j<32){hot=[2];if(t.kind==='ACT')hot=[2,3]}else if(j<64){hot=t.kind==='OUT'?[4,5]:[4]}else hot=[6]}
+ ctx.save();ctx.globalAlpha=ppa;rr(60,618,560,262,16,C.panel,C.line,2);tx('PROGRAM (the instruction tokens)',82,646,{size:21,weight:700,color:C.mut,ls:1.5});
+ prog_.forEach((s,i)=>{const y=664+i*29,on=hot.includes(i);if(on)rr(70,y-1,540,28,8,C.bluel);
+  tx((i+1)+'  '+s,86,y+22,{size:24,mono:true,weight:700,color:on?C.blue:C.ink});
+  if(i===3)tx('fused with MATMUL',600,y+22,{size:20,weight:500,align:'right',color:C.mut})});ctx.restore();
+ // status
+ const sy=914;
+ const act=!st.prompt&&!st.fin;tx('host: argmax; append',60,sy,{size:32,weight:800,color:act?C.or:C.mut});
+ tx(act?'it picks nothing else: the model emits the tokens':(st.prompt?'builds the prompt, then only appends':'stopped at HALT'),60,sy+30,{size:21,weight:500,color:C.mut});
+ tx(`tokens emitted ${String(st.n).padStart(2,' ')} / ${NTOK}`,60,sy+66,{size:34,weight:800,mono:true});
+ const showV=st.fin&&u>sp.pe+NTOK*sp.dt+.5,ok=d.pred===d.label;
+ tx(showV?`predicted ${d.pred} · label ${d.label} ${ok?'✓':'✗'}`:'predicted – · label '+d.label,60,sy+106,{size:34,weight:800,mono:true,color:showV?(ok?C.gr:C.pk):C.mut});
+ tx('v2 results: Qwen3.5-0.8B, A100 · real traces',60,1058,{size:19,weight:500,color:C.mut})}
+// ---- middle: the layer stack, a token entering and leaving -----------------------------------------------
+function midCol(sp,d,st,u){
+ const cx=925,bx=720,bw=420;
+ tx('Qwen3.5-0.8B',cx,76,{size:38,weight:800,align:'center'});tx(`${24+CL} layers: 24 Qwen + ${CL} TPU`,cx,112,{size:24,weight:500,align:'center',color:C.mut});
+ const tY=205,tH=450,gY=675,gH=250,yIn=935,yOut=138;
+ rr(bx,tY,bw,tH,16,'#eef4ff',C.blue,3);tx(`TPU layers (${CL})`,bx+22,tY+32,{size:25,weight:800,color:C.blue});
+ rr(bx,gY,bw,gH,16,C.gyl,C.gy,3);tx('Qwen layers (muted) × 24',bx+22,gY+32,{size:25,weight:800,color:C.mut});
+ // dot path: up the stack (0..0.65) then the model's token returns along the feedback line (0.65..1)
+ const FX=1168,py=(f)=>{ if(f<.65){const g=f/.65;return{x:cx,y:lerp(yIn-4,yOut+44,g),up:g}}
+   const g=(f-.65)/.35;if(g<.25)return{x:lerp(cx+130,FX,g/.25),y:yOut+22,up:1};if(g<.75)return{x:FX,y:lerp(yOut+22,yIn+22,(g-.25)/.5),up:1};return{x:lerp(FX,cx+130,(g-.75)/.25),y:yIn+22,up:0}};
+ let dot=null,lit=0;const feeding=!st.prompt&&!st.fin;
+ if(st.prompt){const f=(u*2.2)%1;dot={x:cx,y:lerp(yIn-4,yOut+44,f),up:f,host:true};}
+ else if(!st.fin)dot=py(st.p);
+ const uy=dot?dot.y:-99;
+ for(let i=0;i<24;i++){const y=gY+44+(23-i)*(7.5+1.5);const l=Math.max(0,1-Math.abs(uy-(y+4))/40);rr(bx+22,y,bw-44,7.5,3,mixc('#d9dee8','#6b7a99',l*.8),null)}
+ for(let i=0;i<CL;i++){const y=tY+46+(CL-1-i)*20;const l=Math.max(0,1-Math.abs(uy-(y+7))/44);rr(bx+22,y,bw-44,15,5,mixc('#c9dbff','#2563eb',l),null)}
+ // feedback line
+ const fa=eo(prog(u,sp.pe>3?sp.pe-.4:sp.pe-.2,sp.pe+.4));
+ ctx.save();ctx.globalAlpha=fa;ln(cx+130,yOut+22,FX,yOut+22,C.gr,4,[12,8]);ln(FX,yOut+22,FX,yIn+22,C.gr,4,[12,8]);ln(FX,yIn+22,cx+130,yIn+22,C.gr,4,[12,8]);
+ ctx.fillStyle=C.gr;ctx.beginPath();ctx.moveTo(cx+132,yIn+22);ctx.lineTo(cx+150,yIn+12);ctx.lineTo(cx+150,yIn+32);ctx.fill();
+ ctx.translate(FX+24,560);ctx.rotate(-Math.PI/2);tx('the model’s output is its next input',0,0,{size:22,weight:700,align:'center',color:C.gr});ctx.restore();
+ // in / out chips
+ const prevTok=st.j>=1?tokAt(d,st.j-1):(st.j===0?{kind:'HALT',k:0,val:0,label:'prompt end'}:null);
+ rr(cx-130,yOut,260,44,22,C.panel,C.line,2);tx('out',cx-106,yOut+30,{size:22,weight:700,color:C.mut});
+ const outT=st.tok;tx(outT?(outT.kind==='HALT'?'HALT':tokLabel(outT)):'–',cx+26,yOut+31,{size:23,mono:true,weight:800,align:'center',color:outT?KIND[outT.kind].c:C.mut});
+ rr(cx-130,yIn,260,44,22,C.panel,C.line,2);tx('in',cx-106,yIn+30,{size:22,weight:700,color:C.mut});
+ let inLbl='–',inCol=C.mut;
+ if(st.prompt){const q=Math.min(PROMPT,Math.floor(u/sp.pe*PROMPT));inLbl=`prompt ${q}/${PROMPT}`;inCol=C.mut}
+ else if(st.j===0){inLbl='last prompt token';inCol=C.mut}else if(prevTok){inLbl=prevTok.kind==='HALT'?'HALT':tokLabel(prevTok);inCol=KIND[prevTok.kind].c}
+ tx(inLbl,cx+32,yIn+31,{size:inLbl.length>13?20:23,mono:true,weight:800,align:'center',color:inCol});
+ if(dot)dotc(dot.x,dot.y,12,dot.host?C.gy:(st.tok&&st.tok.kind==='READ'?'#64748b':(st.tok&&st.tok.kind==='ACT'?C.blue:C.gr)),16);
+ // counter
+ tx(`written by the model: ${st.n} of ${NTOK} tokens`,cx,1018,{size:28,weight:800,align:'center',color:C.ink});
+ tx(`host-fed prompt: ${PROMPT} tokens`,cx,1050,{size:22,weight:500,align:'center',color:C.mut})}
+// ---- right: layer 1 array filling, ReLU/clamp cut, ACT feeds layer 2, logits, argmax --------------------------
+function rightCol(sp,d,st,u,digitNo){
+ const tI=st.prompt?-1:st.tp,layer=st.prompt?0:(st.j>=32?1:0);
+ const a2=prog(tI,31.2,33),L=a2>.5?1:0;
+ tx(st.prompt||tI<32?'Layer 1: 15 → 15 hidden units':'Layer 2: 15 → 10 logits',1240,70,{size:32,weight:800});
+ tx(tI<31.5?'weights held in Gated DeltaNet state · 16×16 array · 5-bit':'its inputs are the ACT tokens the model just wrote',1240,106,{size:23,weight:500,color:C.mut});
+ const fill=st.prompt?prog(u,sp.pe>3?.5:.15,sp.pe*.72):1;
+ const xv1=[...d.x,1],xv2=d.y1;
+ // weight grid (the two layers share the array: cross-fade)
+ for(let r=0;r<16;r++)for(let c=0;c<16;c++){const i=r*16+c;if(i/256>fill)continue;
+  const w1=D2.T1[r][c],w2=D2.T2[r][c];const col=mixc(wCol(w1),wCol(w2),a2);const fl=st.prompt?Math.max(0,1-(fill-i/256)*10):0;
+  const hot=(c===st.k_)||false;rr(GX+c*CS+1,GY+r*CS+1,CS-2,CS-2,5,mixc(col,C.blue,fl*.7),null)}
+ // active column
+ let kk=-1,tk=st.tok;if(tk&&tk.kind!=='HALT')kk=tk.k;
+ if(kk>=0){const x=GX+kk*CS;rr(x,GY-2,CS,16*CS+4,6,null,C.or,4)}
+ // x vector (rows)
+ tx('x',GX-34,GY-12,{size:22,weight:800,align:'center',color:C.or});
+ for(let r=0;r<16;r++){const v1=xv1[r],v2=xv2[r];const have=!st.prompt||fill>.9;const y=GY+r*CS;
+  rr(GX-56,y+1,44,CS-2,6,C.orl,'#f4c88f',1.5);
+  ctx.save();ctx.globalAlpha=have?1:0;tx(String(L?v2:v1),GX-34,y+CS/2+7,{size:19,weight:800,align:'center',color:C.or,mono:true});ctx.restore()}
+ // accumulators
+ const layerOf=L,cvals=[];
+ tx('Σ',GX-34,ACC_Y+25,{size:24,weight:800,align:'center',color:C.gr});
+ for(let c=0;c<16;c++){
+  const raw=layerOf?d.raw2[c]:d.raw1[c],cl=Math.min(Math.max(raw,0),31);
+  const tokIdx=layerOf*32+c*2;                 // READ token index of this column in the current layer
+  let state='empty',shown=null;
+  if(!st.prompt){ if(st.tp>=tokIdx+2)state='done'; else if(st.tp>=tokIdx&&!(st.j>=64)){state=st.tp<tokIdx+1?'sum':'clamp'} }
+  if(st.fin)state=layerOf?'done':state;
+  const x=GX+c*CS;let fill_=C.panel,bd=C.line,txt=null,col=C.mut;
+  if(state==='sum'){const q=eio(clamp((st.tp-tokIdx)/.8));txt=String(Math.round(raw*q));fill_=C.orl;bd=C.or;col=C.or}
+  else if(state==='clamp'){const q=clamp((st.tp-tokIdx-1)/.45);if(q<1){txt=String(raw);fill_=raw<0?C.pkl2||'#ffe1e6':C.orl;bd=raw<0?C.pk:C.or;col=raw<0?C.pk:C.or}else{txt=String(cl);fill_=C.grl;bd=C.gr;col=C.gr}}
+  else if(state==='done'){txt=String(cl);fill_=C.grl;bd='#9bd8b0';col=C.gr}
+  rr(x+1,ACC_Y,CS-2,36,6,fill_,bd,state==='sum'||state==='clamp'?3:1.5);
+  if(txt!==null)tx(txt,x+CS/2,ACC_Y+25,{size:txt.length>2?15:19,weight:800,align:'center',mono:true,color:col});
+  cvals.push(state)}
+ // readout card (what the current token does)
+ rr(1240,732,640,92,16,C.panel,C.line,2);
+ let l1='waiting for the first token',l2='',c1=C.mut;
+ if(st.prompt){l1='host writes the prompt';c1=C.ink;l2=(u<sp.pe*.6?'weights, then x, then program: ':'x and the program: ')+`${Math.min(PROMPT,Math.floor(u/sp.pe*PROMPT))} of ${PROMPT}`}
+ else if(tk){const raw=(tk.layer?d.raw2:d.raw1)[tk.k],cl=Math.min(Math.max(raw,0),31);
+  if(tk.kind==='READ'){l1=`READ column ${tk.k}:  Σ x·w = ${raw}`;c1=C.or;l2='the model emits this READ itself'}
+  else if(tk.kind==='ACT'){l1=raw<0?`${raw}  →  ReLU  →  0`:(raw>31?`${raw}  →  clamp  →  31`:`${raw}  →  ReLU + clamp  →  ${cl}`);c1=raw<0?C.pk:C.gr;l2=`model emits ACT ${tk.k} = ${tk.val}: next layer, row ${tk.k}`}
+  else if(tk.kind==='OUT'){l1=raw<0?`${raw}  →  ReLU  →  0`:(raw>31?`${raw}  →  clamp  →  31`:`${raw}  →  ReLU + clamp  →  ${cl}`);c1=C.gr;l2=`model emits OUT = ${tk.val}  (logit ${tk.k})`}
+  else{l1='HALT';c1=C.pu;l2='the model ends the program itself'}}
+ tx(l1,1262,768,{size:30,weight:800,mono:true,color:c1});tx(l2,1262,806,{size:22,weight:600,color:C.mut});
+ // ACT strip: tokens of layer 1 flying to layer 2's rows
+ // (shown as the x vector on the left of the grid once layer 2 starts; here a chip flies from the column to the row strip)
+ // logits as bars
+ const by=1018,bh=118,bwid=50,gap=14.4,bx0=1240;
+ tx('Layer 2 output: 10 logits (0..31)',1240,862,{size:24,weight:700,color:C.mut});
+ const done2=[];for(let c=0;c<10;c++){done2.push(st.tp>=32+c*2+2||(st.fin))}
+ let arg=-1;if(st.fin&&u>sp.pe+NTOK*sp.dt+.35)arg=d.logits.indexOf(Math.max(...d.logits));
+ for(let c=0;c<10;c++){
+  const x=bx0+c*(bwid+gap),tokIdx=32+c*2;let h=0,val=null;
+  if(st.fin||st.tp>=tokIdx+2){h=1;val=d.logits[c]}else if(st.tp>=tokIdx+1){h=eio(clamp((st.tp-tokIdx-1)/.8));val=d.logits[c]}
+  rr(x,by-bh,bwid,bh,6,C.panel,C.line,1.5);
+  const isA=arg===c,hh=bh*(d.logits[c]/31)*h;
+  if(hh>0)rr(x,by-hh,bwid,hh,6,isA?C.gr:C.blue,null);
+  if(val!==null)tx(String(Math.round(val*h)),x+bwid/2,by-Math.min(bh-4,hh)-8,{size:21,weight:800,align:'center',mono:true,color:isA?C.gr:C.ink});
+  tx(String(c),x+bwid/2,by+34,{size:28,weight:800,align:'center',color:isA?C.gr:(c===d.label&&arg>=0?C.pk:C.mut)});
+  if(isA){rr(x-4,by-bh-30,bwid+8,bh+78,10,null,C.gr,3)}}
+ if(arg>=0){const ok=arg===d.label,e=eob(prog(u,sp.pe+NTOK*sp.dt+.35,sp.pe+NTOK*sp.dt+.9));ctx.save();ctx.translate(1745,858);ctx.scale(clamp(e,0,1.1),clamp(e,0,1.1));
+  rr(-125,-26,250,50,14,ok?C.grl:C.pkl,ok?C.gr:C.pk,3);tx(`argmax = ${arg}  ${ok?'✓':'✗'}`,0,9,{size:28,weight:800,align:'center',color:ok?C.gr:C.pk});ctx.restore()}}
+// ---- the ACT feed: little flying chips from a layer-1 column to the right strip -------------------------------
+function actFeed(sp,d,st,u){
+ if(st.prompt||st.tp>=33)return;
+ // right strip (rows of the next layer) at x=GX+16*CS+14
+ const sx=GX+16*CS+12;tx('ACT',sx+25,GY-12,{size:20,weight:800,align:'center',color:C.blue});
+ for(let r=0;r<16;r++){const tokIdx=r*2+1;let v=null;if(st.tp>=tokIdx+1)v=d.y1[r];const y=GY+r*CS;
+  rr(sx,y+1,50,CS-2,6,v!==null?C.bluel:C.panel,v!==null?C.blue:C.line,1.5);if(v!==null)tx(String(v),sx+25,y+CS/2+7,{size:19,weight:800,align:'center',mono:true,color:C.blue})}
+ // flying chip: while the ACT token (odd j) of column k is being written
+ if(st.tok&&st.tok.kind==='ACT'&&st.tok.layer===0){const k=st.tok.k,q=eio(prog(st.p,.2,.95)),x0=GX+k*CS+CS/2,y0=ACC_Y+18,x1=sx+25,y1=GY+k*CS+CS/2;
+  const x=lerp(x0,x1,q),y=lerp(y0,y1,q)-Math.sin(q*Math.PI)*36;dotc(x,y,12,C.blue,12);tx(String(st.tok.val),x,y+7,{size:16,weight:800,align:'center',color:'#fff',mono:true})}}
+function digitScene(k,u){
+ const sp=SPEC[k],d=D2.digits[sp.i],st=dstate(sp,d,u);
+ const fade=eo(prog(u,0,.35))*(1-prog(u,sp.dur-.3,sp.dur));
+ ctx.save();ctx.globalAlpha=fade;
+ leftCol(sp,d,st,u,k+1);midCol(sp,d,st,u);rightCol(sp,d,st,u,k+1);actFeed(sp,d,st,u);
+ ln(650,40,650,1040,C.line,2);ln(1200,40,1200,1040,C.line,2);
+ if(k>0&&sp.pe<3)tx('fast-forward',636,1058,{size:20,weight:700,align:'right',color:C.or});
+ ctx.restore()}
+// ---- summary -------------------------------------------------------------------------------------------------------------
+function summary(u){
+ const f=a=>eo(prog(u,a,a+.5)),n=D2.digits.length;
+ tx('qwenTPU v2',60,110,{size:80,weight:800,color:C.blue,alpha:f(0)});tx('every digit of the golden set, run as a depth-2 program',60,162,{size:34,weight:600,color:C.mut,alpha:f(0)});
+ // 20 cards, 10 x 2
+ const cw=172,ch=190,gx=60,gy=200;let matched=0;
+ for(let i=0;i<n;i++){const t0=.5+i*.22,on=prog(u,t0,t0+.35);const d=D2.digits[i];const x=gx+(i%10)*(cw+10),y=gy+Math.floor(i/10)*(ch+14);
+  ctx.save();ctx.globalAlpha=eo(on);rr(x,y,cw,ch,14,C.panel,u>t0+.5?'#9bd8b0':C.line,2);drawImg(d.img,x+36,y+12,12.5,1);
+  tx(`pred ${d.pred} · label ${d.label}`,x+cw/2,y+148,{size:22,weight:800,align:'center',color:C.ink});tx(u>t0+.5?'logits = golden ✓':'checking…',x+cw/2,y+178,{size:20,weight:700,align:'center',color:u>t0+.5?C.gr:C.or});ctx.restore();
+  if(u>t0+.5)matched++}
+ // big stat
+ const sa=eo(prog(u,5.4,6.0));ctx.save();ctx.globalAlpha=sa;
+ rr(60,640,880,190,22,C.grl,C.gr,3);tx(`${matched} of 20 match the golden`,500,740,{size:62,weight:800,align:'center',color:C.gr});
+ tx('logits match the integer golden · Qwen3.5-0.8B on an A100',500,792,{size:27,weight:600,align:'center',color:C.mut});ctx.restore();
+ // accuracy
+ const aa=eo(prog(u,8.0,8.6));ctx.save();ctx.globalAlpha=aa;rr(980,640,880,190,22,C.panel,C.line,2);
+ tx('accuracy on 540 held-out digits',1420,682,{size:27,weight:700,align:'center',color:C.mut});
+ const bw=380,iv=prog(u,8.4,10.0);
+ tx('integer (what the model runs)',1000,730,{size:26,weight:700,color:C.blue});tx((D2.int_acc*100*eo(iv)).toFixed(1)+'%',1840,732,{size:36,weight:800,align:'right',mono:true,color:C.blue});
+ rr(1000,742,840,20,10,'#e9edf3');rr(1000,742,840*D2.int_acc*eo(iv),20,10,C.blue);
+ tx('float (same network)',1000,796,{size:26,weight:700,color:C.mut});tx((D2.float_acc*100*eo(iv)).toFixed(1)+'%',1840,798,{size:36,weight:800,align:'right',mono:true,color:C.ink});
+ rr(1000,808,840,20,10,'#e9edf3');rr(1000,808,840*D2.float_acc*eo(iv),20,10,C.gy);ctx.restore();
+ // honesty
+ const ha=eo(prog(u,10.8,11.4));ctx.save();ctx.globalAlpha=ha;
+ tx('Still compiled into the weights: array size and number format, the READ, ACT, READ cycle, chain-only topology.',60,894,{size:28,weight:700,color:C.ink});
+ tx('No early exits, branches or loops. Outputs are ReLU-clamped (no signed logits). The host still builds the prompt and runs argmax; append.',60,936,{size:25,weight:500,color:C.mut});
+ tx('These 20 are the first 20 test digits; the 87.6% is over all 540.',60,976,{size:25,weight:500,color:C.mut});ctx.restore();
+ tx('github.com/Bobliuuu/qwentpu',60,1044,{size:30,weight:700,mono:true,color:C.ink,alpha:f(12)});tx('docs/V2_ISA.md · docs/V2_SEQUENCER.md · examples/mlp/',1860,1044,{size:24,weight:600,mono:true,color:C.mut,align:'right',alpha:f(12.4)})}
+function render(t){ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.fillStyle=C.bg;ctx.fillRect(0,0,W,H);
+ for(const s of SC){if(t>=s.t0&&t<s.t1){const u=t-s.t0;if(s.id==='intro')intro(u);else if(s.id==='sum')summary(u);else digitScene(s.k,u);
+  const e=(s.id==='digit')?1:(1-prog(u,s.t1-s.t0-.35,s.t1-s.t0));if(s.id==='sum'||s.id==='intro'){if(e<1){ctx.save();ctx.globalAlpha=1-e;ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.restore()}}}}}
+window.DUR=DUR;window.render=render;window.SC=SC;window.READY=true;
+</script></body></html>

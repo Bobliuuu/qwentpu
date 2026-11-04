@@ -1,0 +1,20 @@
+<!doctype html><html><head><meta charset="utf-8"><title>v2 what is fixed</title><style>html,body{margin:0;background:#fff}canvas{display:block}</style></head><body><canvas id="c"></canvas>
+<script src="light.js"></script><script src="trace_v2.js"></script><script src="v2common.js"></script><script>
+// Wording from README "v2: a TPU that runs a program" and docs/V2_SEQUENCER.md section 8. No numbers here, only what is chosen vs compiled.
+const LEFT=[['depth','how many layers the program runs (entry point)'],['per-layer widths','how wide each layer is'],['weights','the network itself'],['input','what it is run on']];
+const RIGHT=[['array size and number format','16×16 or 32×32, 5-bit operands'],['READ, ACT, READ token cycle','the order of the tokens the model emits'],['chain-only topology','layer k feeds layer k+1, nothing else'],['no early exits, branches or loops','a program always runs to the last block'],['ReLU-clamped outputs','no signed logits']];
+const caps=[[.4,6.8,'The prompt picks the network.','depth, per-layer widths, weights, input: written as tokens, no recompiling'],
+ [7.0,15.6,'The weights fix the machine.','array size and number format, the READ, ACT, READ cycle, chain-only topology'],
+ [15.8,23.6,'The host only builds the prompt and runs argmax; append.','a general instruction memory would remove most of this · designed in docs/V2_SEQUENCER.md, not built']];
+function lock(x,y,c){rr(x,y+12,34,26,5,c);ctx.save();ctx.strokeStyle=c;ctx.lineWidth=5;ctx.beginPath();ctx.arc(x+17,y+12,10,Math.PI,0);ctx.stroke();ctx.restore()}
+function tick(x,y,c){ctx.save();ctx.strokeStyle=c;ctx.lineWidth=7;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x,y+22);ctx.lineTo(x+12,y+34);ctx.lineTo(x+34,y+6);ctx.stroke();ctx.restore()}
+register(24.2,u=>{header('v2','WHAT IS FIXED, WHAT IS NOT',u);
+ const pa=eo(prog(u,.3,.9));ctx.save();ctx.globalAlpha=pa;rr(48,124,880,640,22,'#f3f7ff',C.blue,3);tx('Chosen by the prompt',80,184,{size:46,weight:800,color:C.blue});ctx.restore();
+ const pb=eo(prog(u,7.0,7.6));ctx.save();ctx.globalAlpha=pb;rr(960,124,912,640,22,C.panel,C.gy,3);tx('Compiled into the weights',1020,184,{size:46,weight:800,color:C.mut});lock(980,150,C.mut);ctx.restore();
+ LEFT.forEach(([a,b],i)=>{const t=1.2+i*1.2,k=eo(prog(u,t,t+.5));if(k<=0)return;ctx.save();ctx.globalAlpha=k;const y=236+i*130;tick(84,y,C.gr);tx(a,142,y+34,{size:42,weight:800});tx(b,142,y+78,{size:30,weight:600,color:C.mut});ctx.restore()});
+ RIGHT.forEach(([a,b],i)=>{const t=7.8+i*1.1,k=eo(prog(u,t,t+.5));if(k<=0)return;ctx.save();ctx.globalAlpha=k;const y=232+i*106;lock(988,y+4,C.gy);tx(a,1040,y+34,{size:38,weight:800,color:C.ink});tx(b,1040,y+74,{size:30,weight:600,color:C.mut});ctx.restore()});
+ // host strip
+ const ha=eo(prog(u,15.8,16.4));ctx.save();ctx.globalAlpha=ha;rr(48,784,W-96,96,20,C.orl,C.or,3);
+ tx('HOST',92,848,{size:44,weight:800,color:C.or});tx('builds the prompt (weights, input, entry point), then runs argmax; append until HALT',250,846,{size:34,weight:700,color:C.ink});ctx.restore();
+ caption(caps,u)});
+</script></body></html>

@@ -1,0 +1,46 @@
+<!doctype html><html><head><meta charset="utf-8"><title>v2 program in the prompt</title><style>html,body{margin:0;background:#fff}canvas{display:block}</style></head><body><canvas id="c"></canvas>
+<script src="light.js"></script><script src="trace_v2.js"></script><script src="v2common.js"></script><script>
+// One compiled model (Dmax=4, n=4, u3s3, 3 chip layers), programs of depth 1, 2, 4 chosen only by where the prompt writes the input.
+// Block values are the real layer outputs of the CPU circuit-IR runs in trace_v2.js (emitted ids asserted == expected, logits == numpy).
+const DD=D2.depth_demo,PR=DD.progs,DM=DD.dmax,SCN=7.2,T0=1.0;
+const caps=[[.4,SCN*3+T0-.2,'Where the input is written chooses how deep the program runs.','entry block = initial program counter · one compiled model runs depth 1, 2 and 4'],
+ [SCN*3+T0+.1,SCN*3+T0+5.2,'Same weights, three programs. The prompt chose each one.','24 of 24 programs exact on Qwen3.5-0.8B (A100) · docs/V2_SEQUENCER.md section 8']];
+const BX=[150,590,1030,1470],BW=300,BY=360,BH=250;
+function scene(k,u){
+ const p=PR[k],a=T0+k*SCN;const q=u-a;if(q<-.2||q>SCN)return;
+ const fa=eo(prog(q,0,.4))*(1-prog(q,SCN-.4,SCN));ctx.save();ctx.globalAlpha=fa;
+ tx(`depth ${p.depth} program`,60,708,{size:60,weight:800,color:C.ink});
+ tx(`entry block ${p.entry}`,60,756,{size:36,weight:700,color:C.mut});
+ // prompt marker: x written into the entry block
+ const ex=BX[p.entry]+BW/2,mk=eo(prog(q,.4,1.0));
+ rr(ex-225,130,450,64,16,C.orl,C.or,3);tx('prompt: input x written here',ex,172,{size:30,weight:800,align:'center',color:C.or,alpha:mk});
+ ctx.save();ctx.globalAlpha=mk;arrow(ex,198,ex,BY-8,C.or,6);ctx.restore();
+ // blocks
+ const pulse=prog(q,1.4,1.4+.9*p.depth+.4),run=Math.floor(clamp(pulse*p.depth,0,p.depth-.001));
+ for(let b=0;b<DM;b++){
+  const used=b>=p.entry,j=b-p.entry,on=used&&pulse*p.depth>j;
+  const x=BX[b];rr(x,BY,BW,BH,18,used?(on?'#eef4ff':C.panel):'#fafbfd',used?C.blue:C.gy,used?3:2);
+  if(!used){ctx.save();ctx.setLineDash([10,8]);rr(x,BY,BW,BH,18,null,C.gy,2);ctx.restore()}
+  tx(`block ${b}`,x+BW/2,BY+44,{size:34,weight:800,align:'center',color:used?C.blue:C.gy});
+  if(!used)tx('skipped',x+BW/2,BY+BH/2+12,{size:32,weight:700,align:'center',color:C.gy});
+  if(used&&on){const L=p.layers[j];const ys=L.y;tx('ReLU + clamp',x+BW/2,BY+90,{size:28,weight:600,align:'center',color:C.mut});
+   tx('['+ys.join(', ')+']',x+BW/2,BY+160,{size:46,weight:800,align:'center',mono:true,color:C.ink})}
+  if(b<DM-1)arrow(x+BW+6,BY+BH/2,BX[b+1]-8,BY+BH/2,used&&b>=p.entry?C.blue:C.gy,5)}
+ // token pulse along the chain
+ if(pulse>0&&pulse<1){const f=pulse,x0=BX[p.entry]+BW/2,x1=BX[DM-1]+BW/2;dotc(lerp(x0,x1,f),BY+BH+30,14,C.blue,16)}
+ // end: OUT, HALT
+ const ea=eo(prog(q,1.4+.9*p.depth,1.4+.9*p.depth+.5));ctx.save();ctx.globalAlpha=ea;
+ chip('OUT '+p.out.join(','),1500,BY+BH+56,'OUT',{size:32});chip('HALT',1500+250,BY+BH+56,'HALT',{size:32});
+ tx(`${p.emitted} tokens emitted by the model, then HALT`,60,820,{size:36,weight:800,color:C.ink});
+ tx(`= 2 × ${p.depth} layers × 4 columns`,60,866,{size:30,weight:600,color:C.mut});ctx.restore();
+ ctx.restore()}
+register(SCN*3+T0+5.6,u=>{header('v2','PROGRAM IN THE PROMPT',u);
+ 
+ for(let k=0;k<3;k++)scene(k,u);
+ if(u>SCN*3+T0){const e=eo(prog(u,SCN*3+T0,SCN*3+T0+.6));ctx.save();ctx.globalAlpha=e;
+  [[1,0],[2,0],[4,0]].forEach(([d],i)=>{const y=190+i*150;rr(160,y,1600,120,18,C.panel,C.line,2);tx(`depth ${d}`,200,y+76,{size:46,weight:800});
+   for(let b=0;b<DM;b++){const used=b>=DM-d;rr(520+b*160,y+22,140,76,12,used?C.bluel:'#fafbfd',used?C.blue:C.gy,2.5);tx(String(b),590+b*160,y+72,{size:34,weight:800,align:'center',color:used?C.blue:C.gy})}
+   tx(`${PR[i].emitted} tokens`,1190,y+76,{size:40,weight:800,mono:true,color:C.ink});tx(`out [${PR[i].out.join(', ')}]`,1440,y+76,{size:34,weight:700,mono:true,color:C.gr})});
+  tx('the same compiled model every time',W/2,740,{size:44,weight:800,align:'center',color:C.blue});ctx.restore()}
+ caption(caps,u)});
+</script></body></html>

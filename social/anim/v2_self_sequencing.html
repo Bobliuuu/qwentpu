@@ -1,0 +1,46 @@
+<!doctype html><html><head><meta charset="utf-8"><title>v2 self-sequencing</title><style>html,body{margin:0;background:#fff}canvas{display:block}</style></head><body><canvas id="c"></canvas>
+<script src="light.js"></script><script src="trace_v2.js"></script><script src="v2common.js"></script><script>
+// Real tokens: digit 0 of golden.npz (trace_v2.js). v1 row: host sends READ k, model answers OUT (the OUT values are the real layer-1 outputs).
+// v2 row: the model's own READ / ACT tokens, in the order of the real emitted stream, each fed back as the next input.
+const d=D2.digits[0],V1=[[0,d.y1[0]],[1,d.y1[1]],[2,d.y1[2]]];
+const caps=[[.5,9.6,'In v1 the host picks every token and the model answers.','host feeds CELL, ACT and READ · the model writes OUT only'],
+ [10.2,23.6,'In v2 the model feeds its own answer back in as the next input.','host: argmax; append, until HALT · 65 tokens emitted after the 535-token prompt']];
+const LOOP=[[1100,650],[1270,650],[1270,790],[560,790],[560,650],[700,650]];
+function v1row(u){
+ rr(48,116,W-96,370,22,'#fbfcfe',C.line,2);tx('v1',80,172,{size:44,weight:800,color:C.mut});tx('the host drives',160,172,{size:34,weight:700,color:C.mut});
+ const cyc=2.3,t0=1.2,hl=(a,b)=>clamp(Math.min(prog(u,a,a+.15),1-prog(u,b-.2,b)));
+ let hostHl=0,modHl=0;
+ V1.forEach(([k,y],i)=>{const a=t0+i*cyc;hostHl=Math.max(hostHl,hl(a,a+.5)+hl(a+1.6,a+2.2));modHl=Math.max(modHl,hl(a+.7,a+1.3))});
+ box(110,230,350,190,'HOST','picks every token',C.or,C.orl,clamp(hostHl,0,1));
+ box(1000,230,400,190,'MODEL','Qwen3.5-0.8B',C.blue,'#eef4ff',clamp(modHl,0,1));
+ arrow(470,285,990,285,C.or,5);arrow(990,375,470,375,C.gr,5);
+ V1.forEach(([k,y],i)=>{const a=t0+i*cyc;
+  const p1=prog(u,a+.05,a+.7);if(p1>0&&p1<1)chipC('READ '+k,lerp(560,900,eio(p1)),285,'READ',{alpha:1});
+  const p2=prog(u,a+1.25,a+1.95);if(p2>0&&p2<1)chipC('OUT '+y,lerp(900,560,eio(p2)),375,'OUT');
+  if(u>a+1.95&&u<a+cyc+.05){tx('host picks the next one',285,468,{size:30,weight:700,align:'center',color:C.or,alpha:1-prog(u,a+cyc-.3,a+cyc)})}});
+ tx('model writes OUT only',1640,300,{size:32,weight:800,align:'center',color:C.blue});tx('host feeds',1640,360,{size:30,weight:600,align:'center',color:C.mut});tx('CELL, ACT, READ',1640,400,{size:32,weight:800,align:'center',color:C.or})}
+function v2row(u){
+ const a0=eo(prog(u,9.6,10.2));rr(48,500,W-96,392,22,'#fbfcfe',C.line,2);tx('v2',80,556,{size:44,weight:800,color:C.blue,alpha:.35+.65*a0});tx('the model drives',160,556,{size:34,weight:700,color:C.blue,alpha:.35+.65*a0});ctx.save();ctx.globalAlpha=a0;
+ box(110,640,250,120,'HOST',null,C.or,C.orl,0);tx('argmax; append',235,810,{size:30,weight:700,align:'center',color:C.or});
+ ln(360,700,560,790,C.or,3,[10,8]);
+ // model + loop
+ // token index as a function of time: 8 slow tokens, then a fast-forward to 65
+ const T0=10.4,SLOW=.58,NS=8,t1=T0+NS*SLOW,FFd=3.6;
+ let n,frac;if(u<T0){n=-1;frac=0}else if(u<t1){const q=(u-T0)/SLOW;n=Math.floor(q);frac=q-n}else{const q=eio(prog(u,t1,t1+FFd));n=Math.min(64,NS+Math.floor(q*(65-NS)));frac=(u*7)%1;if(u>=t1+FFd){n=64;frac=1}}
+ const hot=n>=0&&n<64&&frac<.4?1:0;
+ box(700,560,400,190,'MODEL','writes every token',C.blue,'#eef4ff',hot);
+ ctx.save();ctx.strokeStyle=C.gr;ctx.lineWidth=5;ctx.setLineDash([14,10]);ctx.beginPath();LOOP.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.stroke();ctx.restore();
+ arrow(640,650,698,650,C.gr,5);
+ tx('its output is its next input',915,852,{size:30,weight:800,align:'center',color:C.gr});
+ if(n>=0){const t=tokAt(d,Math.min(n,64));const lab=t.kind==='HALT'?'HALT':tokLabel(t);const f=n>=64?1:clamp(frac*1.2);
+  const [x,y]=alongPath(LOOP,n>=64?0:f);chipC(lab,x,y,t.kind,{alpha:n>=64?1:1});
+  // out chip history: last emitted token above the model
+  }
+ const cnt=n<0?0:Math.min(65,n+1);
+ tx('written by the model',1580,590,{size:32,weight:700,align:'center',color:C.mut});
+ tx(`${cnt} of 65`,1580,670,{size:72,weight:800,align:'center',mono:true,color:C.blue});
+ tx('tokens after the prompt',1580,720,{size:32,weight:600,align:'center',color:C.mut});
+ if(n>=64){const e=eob(prog(u,t1+FFd,t1+FFd+.5));ctx.save();ctx.translate(1580,790);ctx.scale(clamp(e,0,1.05),clamp(e,0,1.05));rr(-200,-36,400,66,18,C.grl,C.gr,3);tx('model ends it: HALT',0,12,{size:34,weight:800,align:'center',color:C.gr});ctx.restore()}
+ ctx.restore()}
+register(24.2,u=>{header('v2','SELF-SEQUENCING',u);v1row(u);v2row(u);caption(caps,u)});
+</script></body></html>
