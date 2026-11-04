@@ -102,6 +102,35 @@ class GraphedChip(ChipPath):
         return out.clone()
 
 
+class GraphedTrace(ChipPath):
+    """ChipPath for whole cache-less traces (prefill from zero state, `past=None`) replayed from one CUDA graph per
+    trace length.  The eager chip forward is launch-bound (~147 kernels, ~1.8 ms of GPU work but ~7 ms of CPU
+    dispatch for a 576-token trace); the graph keeps the identical kernels and so returns identical bits."""
+
+    def __init__(self, model, v0, code_dims=None, readout="code"):
+        super().__init__(model, v0, code_dims, readout)
+        self.graphs = {}
+
+    @torch.no_grad()
+    def tokens(self, ids, past=None):
+        assert past is None, "GraphedTrace replays cache-less traces; use GraphedChip for a cache"
+        key = tuple(ids.shape)
+        if key not in self.graphs:
+            static = ids.clone()
+            s = torch.cuda.Stream(); s.wait_stream(torch.cuda.current_stream())
+            with torch.cuda.stream(s):
+                for _ in range(3): ChipPath.tokens(self, static, None)
+            torch.cuda.current_stream().wait_stream(s)
+            g = torch.cuda.CUDAGraph()
+            with torch.cuda.graph(g): out = ChipPath.tokens(self, static, None)
+            self.graphs[key] = (g, static, out)
+        g, static, out = self.graphs[key]
+        static.copy_(ids); g.replay()
+        return out.clone()
+
+    __call__ = tokens
+
+
 class TpuSession:
     def __init__(self, model, v0, fast=True, readout="code", code_dims=None):
         """fast: False = whole network (reference); True = TPU layers only; "graph" = TPU layers from CUDA graphs."""

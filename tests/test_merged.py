@@ -26,7 +26,7 @@ PROMPTS = ["The capital of France is Paris, and the capital of Germany is",
 
 
 def _build_base():
-    cfg, sd = load(SRC); tc = dict(cfg["text_config"]); tc["tie_word_embeddings"] = False
+    cfg, sd = load(SRC, DEV); tc = dict(cfg["text_config"]); tc["tie_word_embeddings"] = False
     sd["lm_head.weight"] = sd["model.embed_tokens.weight"].clone()
     return instantiate(tc, sd)
 
@@ -175,6 +175,19 @@ def test_cuda_graph_executor_is_bit_identical(merged):
         for x in X:
             a, b = eager.matvec(x), graph.matvec(x)
             assert (a == b).all() and (b == C.ref_matvec(x, W)).all(), (a, b)
+
+
+@pytest.mark.skipif(not DEV.startswith("cuda"), reason="CUDA graphs")
+def test_graphed_trace_is_bit_identical(merged):
+    """One CUDA graph per whole trace (cache-less prefill) returns the same hidden bits and tokens as the eager chip path."""
+    from qwentpu.driver import ChipPath, GraphedTrace
+    model, _, v0, _ = merged
+    eager, graph = ChipPath(model, v0), GraphedTrace(model, v0)
+    for nvec in (1, 3, 3, 14):                  # repeated length: the second one replays
+        W, X = C.rand_case(rng, True, nvec); toks, want = trace(W, X)
+        ids = torch.tensor([[v0 + t for t in toks]], device=DEV)
+        a, b = eager.tokens(ids, None)[0].tolist(), graph.tokens(ids, None)[0].tolist()
+        assert a == b == want, nvec
 
 
 def run_once(tc, sd, v0, toks):

@@ -392,6 +392,8 @@
   "array": "8×8",
   "b1_full": 6629,
   "b1_chip": 74462,
+  "b1_chip_graph": 340925,
+  "b1_chip_graph_note": "GraphedTrace (bench.py --graph), mean of 6 runs (3 repeats x 3 and 20 traces), range 299296-377153; eager rerun in the same session averaged 75207. results/a100/chip_graph_ab.jsonl",
   "b16_full": 33074,
   "b16_chip": 125208,
   "source": "A100 same trace, 1728 positions: results/a100/ab_same_trace.jsonl (b16 values from final.jsonl / sweep.jsonl, different traces)"

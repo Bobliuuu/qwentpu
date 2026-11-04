@@ -1,0 +1,7 @@
+{"variant": "profile", "gpu_kernel_us_per_case": 1825.3, "n_kernels_per_case": 147}
+{"variant": "eager", "tok_per_s": 74630.3, "hidden_bit_identical": true, "setup_s": 0.3, "n_cases": 20, "tokens": [576, 576, 576]}
+{"variant": "graph", "tok_per_s": 351038.8, "hidden_bit_identical": true, "setup_s": 0.1, "n_cases": 20, "tokens": [576, 576, 576]}
+{"variant": "compile:default", "tok_per_s": 96190.0, "hidden_bit_identical": true, "setup_s": 9.3, "n_cases": 20, "tokens": [576, 576, 576]}
+{"variant": "compile:max-autotune-no-cudagraphs", "tok_per_s": 107702.7, "hidden_bit_identical": true, "setup_s": 64.3, "n_cases": 20, "tokens": [576, 576, 576]}
+{"variant": "compile:reduce-overhead", "tok_per_s": 97996.9, "hidden_bit_identical": false, "setup_s": 4.2, "n_cases": 20, "tokens": [576, 576, 576]}
+{"variant": "compile:max-autotune", "tok_per_s": 98094.7, "hidden_bit_identical": false, "setup_s": 11.3, "n_cases": 20, "tokens": [576, 576, 576]}

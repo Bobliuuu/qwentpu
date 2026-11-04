@@ -82,6 +82,7 @@ Depth is the price of width, and the biggest wins are in skipping work, not addi
 |---|---|
 | whole network, batch 1, same trace | 6,629 tok/s |
 | **TPU layers only** (Qwen's muted layers skipped, bit-identical) | **74,462 tok/s** (11×) |
+| TPU layers only, **one CUDA graph per trace** (`bench.py --graph`, bit-identical) | **~341,000 tok/s** (mean of 3 runs ×2 traces, range 299k-377k; 4.6× over the eager TPU-layers rerun at 75,207) |
 | free-running chained matvecs, TPU layers + **CUDA graphs** | **705 matvec/s** |
 
 <p align="center"><img src="docs/chip-path.svg" alt="chip-only path" width="100%"></p>
@@ -140,7 +141,7 @@ with s.chip():                                         # the TPU, in the same mo
 | `qwentpu/circuit.py` | the TPU in our IR: weight/accumulator heads, AND products, adder-tree planner, packing |
 | `qwentpu/compiler/` | **own compiler**: IR, bf16 exactness evaluator, weight emitter, integer gadgets |
 | `qwentpu/merge.py`, `mute.py` | widen Qwen, append the TPU layers, `tau`, muting, split-K guard |
-| `qwentpu/driver.py` | `ChipPath`, `GraphedChip` (CUDA graphs), `TpuSession`, `HybridSession` |
+| `qwentpu/driver.py` | `ChipPath`, `GraphedChip` / `GraphedTrace` (CUDA graphs), `TpuSession`, `HybridSession` |
 | `bench.py`, `bench_driver.py` | mass replay vs NumPy · free-running chained matvecs |
 | `run_matrix.sh` | every array on every model |
 | `docs/site/` | 🎮 interactive walkthrough · `docs/tools/gen_svgs.py` regenerates the diagrams |
