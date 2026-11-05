@@ -1,0 +1,26 @@
+# qwenTPU v2 vectorized (vec neurons per token), A100, Qwen3.5-0.8B bf16, host loop = argmax; append
+# source: results/a100/v2_vec.jsonl (bench_vec.py).  exact = emitted tokens == numpy golden and logits == plain network,
+# random programs of every depth 1..Dmax x both readouts (+ golden MLP for n=16).  Speed: deepest program, 3 warm-up + 20 timed
+# inferences, same input; 'graph' prefill includes the one-off CUDA-graph capture of each new session, so compare loop_ms.
+
+Dmax=4 n=4 u3s3
+  vec layers   vocab hidden emitted     exact | eager loop ms   ms/inf | graph loop ms   ms/inf
+    1      3    2234   1536      32  24/24   |        150.62   159.42 |          39.2    75.75
+    2      5    2881   1792      16  24/24   |        124.88   139.26 |         43.41   102.45   loop x1.21 eager, x0.90 graph; inference x1.14 eager
+    4      9   32769   2560       8  24/24   |        103.96   127.43 |         59.34   158.32   loop x1.45 eager, x0.66 graph; inference x1.25 eager
+
+Dmax=2 n=8 u3s3
+  vec layers   vocab hidden emitted     exact | eager loop ms   ms/inf | graph loop ms   ms/inf
+    1      3    2266   1536      32  12/12   |        152.57   161.52 |         39.56    78.02
+    2      5    3009   1792      16  12/12   |        119.37   133.09 |         42.58    99.69   loop x1.28 eager, x0.93 graph; inference x1.21 eager
+    4      9   36865   2560       8  12/12   |        106.95   131.21 |          60.0   159.32   loop x1.43 eager, x0.66 graph; inference x1.23 eager
+
+Dmax=2 n=8 u5s5
+  vec layers   vocab hidden emitted     exact | eager loop ms   ms/inf | graph loop ms   ms/inf
+    1     10    9026   2048      32  12/12   |        474.86   501.79 |        118.09   225.36
+    2     12   23553   2944      16  12/12   |        283.52   316.34 |        104.49   238.18   loop x1.67 eager, x1.13 graph; inference x1.59 eager
+
+Dmax=2 n=16 u5s5
+  vec layers   vocab hidden emitted     exact | eager loop ms   ms/inf | graph loop ms   ms/inf
+    1     20   34370   3072      64  32/32   |       2183.57  2248.39 |        425.24   673.12   golden MLP 20/20
+    2     24   60417   4864      32  32/32   |       1106.03  1170.45 |        350.83   657.91   loop x1.97 eager, x1.21 graph; inference x1.92 eager   golden MLP 20/20
