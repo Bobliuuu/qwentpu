@@ -327,6 +327,20 @@ The `.txt` logs also contain two pytest summary lines with failures (`4 failed, 
 
 The classifier scores 87.6% on 540 held-out digits as an integer network (the one the model runs), against 91.1% for a float MLP of the same shape on the same 15 pooled features. The model reproduces the integer network exactly, so the 3.5 point gap is not hardware error. It comes from the arithmetic the datapath imposes: weights are 5-bit integers, inputs are quantised to 0..12, and there is no requantisation shift (the scale is fixed, so every product must stay inside the 0..31 activation window). `examples/mlp/train.py` trains straight through that arithmetic (round and clamp with straight-through gradients) and picks the seed by training accuracy; an input range sweep of 3 to 31 gave 83.5% to 88.9% test accuracy.
 
+### Vectorized v2: several neurons per token
+
+The circuit's `g` and `h` packing (section 5b, optimization 1) carries over to the sequenced chain. With `vec = g = h` an `ACT` token carries `vec`
+activations and a `READ` / `OUTK` token `vec` outputs, so a chain of `depth` blocks of width `n` emits `2 depth n / vec` tokens. The chain is the
+same chain written in token slots (`Schedule.chain(depth, n / vec)`); the feedback code is the v1 code stage, because the circuit pads `ACT0` to a
+multiple of `NOUT^vec` and the next-token id is `base + digits` with no carry (design: `docs/V2_VECTORIZED.md`).
+
+Measured on Qwen3.5-0.8B (A100, bf16; `results/a100/v2_vec.txt`): every program is exact for vec 1, 2 and 4 on 3-bit arrays and for vec 1 and 2 on
+5-bit arrays, 0 mismatches, both readouts, including the digit classifier at vec 2 (20/20). The emitted-token loop of the 16-wide 5-bit classifier
+falls from 2,184 ms to 1,106 ms on the eager chip path (1.97x, 1.92x per inference) and from 425 ms to 351 ms with CUDA graphs (1.21x). Each token
+costs more (24 chip layers instead of 20, hidden 4864 instead of 3072), so the gain is below `vec`. On 3-bit arrays the eager loop gains 1.2x to 1.45x
+and the CUDA-graph loop loses (0.90x at vec 2, 0.66x at vec 4): at 5-bit, vec 4 would need 2^20 ids per slot and is not built. This matches section 5b:
+packing trades tokens for heads, layers and vocabulary.
+
 ### Honest limits of v2
 
 * **Chain-only topology.** Layer b feeds layer b+1. No skip connections, no fan-out, no branches, loops or early exit.

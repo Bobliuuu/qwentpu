@@ -173,6 +173,24 @@ print(int(np.argmax(logits)), z["label"][0])
 
 `feed` is any function that returns the model's next token at each fed position (`examples/mlp/run_v2.py` has a numpy one, `SimFeed`). Pass one weight matrix instead of two to run a depth-1 program on the same compiled model.
 
+### Vectorized v2: several neurons per token
+
+`Sequencer(depth, width, ab, wb, vec=2)` (and `ProgramMachine`) packs `vec` neurons into every token: one `ACT` token carries `vec` activations
+and one `READ` / `OUTK` token `vec` outputs, so the model emits `2 * depth * width / vec` tokens instead of `2 * depth * width`. The model still
+emits every token, the host still runs `argmax; append`, and `vec=1` (the default) is the scalar chain, unchanged ([design](docs/V2_VECTORIZED.md)).
+On Qwen3.5-0.8B (A100) every program is exact for vec 1, 2 and 4 (0 mismatches), including the 15-15-10 digit classifier at vec 2 (20 of 20).
+Speed on the classifier's array (two 16-wide blocks, 5-bit, 64 tokens become 32; the loop is the emitted-token loop):
+
+| | vec 1 | vec 2 |
+|---|---|---|
+| chip layers / vocabulary | 20 / 34,370 | 24 / 60,417 |
+| eager: loop, per inference | 2,184 ms, 2,248 ms | 1,106 ms, 1,170 ms (**1.92x**) |
+| CUDA graph: loop | 425 ms | 351 ms (1.21x) |
+
+At 3-bit the eager loop gains 1.2x (vec 2) to 1.45x (vec 4), and the CUDA-graph loop loses (0.90x and 0.66x): the vectorized chip has more layers
+and a wider hidden state, and the graph path already pays no launch cost. The vocabulary grows as `2^(AB * vec)` per slot, so 5-bit stops at vec 2.
+Full table: [`results/a100/v2_vec.txt`](results/a100/v2_vec.txt).
+
 ### What v2 does not do
 
 - **Chain-only topology:** layer b feeds layer b+1. No branches, loops, skips or early exit.
