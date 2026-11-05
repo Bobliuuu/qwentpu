@@ -111,13 +111,13 @@ SRC = os.environ.get("QWEN_DIR")
 
 
 @pytest.mark.skipif(not SRC, reason="set QWEN_DIR to a Qwen3.5 checkpoint")
-@pytest.mark.parametrize("depth,width", [(2, 4)])
-def test_merged_qwen_host_only_argmax(depth, width):
+@pytest.mark.parametrize("depth,width,vec", [(2, 4, 1), (2, 4, 2)])
+def test_merged_qwen_host_only_argmax(depth, width, vec):
     torch = pytest.importorskip("torch")
     from qwentpu.driver import TpuSession
     from qwentpu.merge import build_merged, instantiate
     dev = os.environ.get("QWEN_DEVICE", "cpu")
-    seq = Sequencer(depth, width).install()
+    seq = Sequencer(depth, width, vec=vec).install()
     tc, sd, v0, lay, g = build_merged(SRC, mute_qwen=False)
     model = instantiate(tc, sd, dev)
     rng = np.random.default_rng(7)
@@ -127,7 +127,7 @@ def test_merged_qwen_host_only_argmax(depth, width):
         sess = TpuSession(model, v0, fast=True, readout="lm_head")
         emitted = generate(sess.feed, prompt, seq.halt)             # the host: argmax; append
         assert emitted == seq.expected(prompt)
-        assert list(seq.logits(emitted)) == list(ref_chain(Ws, x))
+        assert list(seq.logits(emitted)[: Ws[-1].shape[1]]) == list(ref_chain(Ws, x))   # logits() also carries the padding column
 
 
 GOLD = os.path.join(os.path.dirname(__file__), "..", "examples", "mlp", "golden.npz")
