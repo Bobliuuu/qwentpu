@@ -42,9 +42,10 @@ class ProgramMachine(Sequencer):
             if b < D - 1: Wp[b * n + n - 1, b * n + n - 1] = 1
         x = list(np.asarray(x, dtype=int)) + [0] * (n - 1 - len(x)) + [1]
         assert len(x) == n and 0 <= min(x) and max(x) <= C.AMAX
-        entry = range(s * n, s * n + n)
-        return (C.load_trace(Wp) + [C.tok_act(r, 0) for r in range(KR) if r not in entry]
-                + [C.tok_act(s * n + i, x[i]) for i in range(n)])
+        gg = C.G; m = n // gg                                          # token slots per block (gg = 1: one row per token)
+        entry = range(s * m, s * m + m)
+        return (C.load_trace(Wp) + [C.tok_act(r, *[0] * gg) for r in range(KR // gg) if r not in entry]
+                + [C.tok_act(s * m + i, *x[i * gg:(i + 1) * gg]) for i in range(m)])
 
     def program_logits(self, emitted, n_out):
         return list(self.logits(emitted)[:n_out])

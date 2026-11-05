@@ -53,6 +53,43 @@ def test_ir_model_emits_the_whole_chain(depth, width, ab, wb):
         assert len(set(want)) > 1 or trial == 0
 
 
+@pytest.mark.parametrize("depth,width,ab,wb,vec", [(2, 4, 3, 3, 2), (2, 4, 3, 3, 4), (4, 4, 3, 3, 2), (2, 8, 3, 3, 2), (2, 8, 3, 3, 4)])
+def test_ir_model_emits_the_vector_chain(depth, width, ab, wb, vec):
+    """vec neurons per token: the same chain in `vec`-row slots.  The circuit IR predicts every token of the chain and the
+    decoded logits equal the plain numpy network; the chain is `vec` times shorter than the scalar one."""
+    rng = np.random.default_rng(depth * 100 + width + vec)
+    seq = Sequencer(depth, width, ab, wb, vec=vec).install()
+    assert C.G == C.H == vec and C.ACT0 % C.NOUT ** vec == 0 and seq.outk0 % C.NOUT ** vec == 0
+    for trial in range(2):
+        Ws, x = rand_net(rng, depth, width)
+        prompt = seq.prompt(Ws, x)
+        emitted = seq.expected(prompt)
+        assert len(emitted) == 2 * depth * width // vec
+        g, pred = run_ir(seq, prompt, emitted)
+        assert pred == emitted + [seq.halt]
+        assert list(seq.logits(emitted)[: Ws[-1].shape[1]]) == list(ref_chain(Ws, x))
+
+
+def test_vector_and_scalar_chains_compute_the_same_network():
+    """Same weights and input: the scalar and the vec=2 golden emit different tokens but decode to identical logits."""
+    rng = np.random.default_rng(5)
+    Ws, x = rand_net(rng, 2, 8)
+    logits = []
+    for vec in (1, 2, 4):
+        seq = Sequencer(2, 8, 3, 3, vec=vec).install()
+        logits.append(list(seq.logits(seq.expected(seq.prompt(Ws, x)))[: Ws[-1].shape[1]]))
+        Sequencer.uninstall()
+    assert logits[0] == logits[1] == logits[2] == list(ref_chain(Ws, x))
+
+
+def test_vec_prompt_is_weights_plus_slot_tokens():
+    seq = Sequencer(2, 4, 3, 3, vec=2).install()
+    Ws, x = rand_net(np.random.default_rng(0), 2, 4)
+    p = seq.prompt(Ws, x)
+    assert len(p) == C.KR * C.NC + C.KR // 2                                  # one ACT token per 2 rows
+    assert all(C.ACT0 <= t < C.READ0 for t in p[C.KR * C.NC:])
+
+
 def test_prompt_has_no_schedule():
     """The prompt is weights + input only: CELL tokens then width ACT tokens; no READ, no OUT, no op tokens."""
     seq = Sequencer(2, 4).install()
@@ -64,7 +101,7 @@ def test_prompt_has_no_schedule():
 
 
 def test_v1_circuit_unchanged_after_uninstall():
-    Sequencer(2, 4).install(); Sequencer.uninstall()
+    Sequencer(2, 4, vec=2).install(); Sequencer.uninstall()
     g, d = C.build()
     assert g.n_layers() == 2 and C.SEQ is None and len(C.VOCAB) == C.READ0 + C.NREAD
 

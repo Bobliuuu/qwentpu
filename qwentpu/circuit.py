@@ -34,9 +34,10 @@ WINDOW = 256
 SEQ = None          # optional v2 sequencer (sequencer.install) that decides the code (next-token) dims
 
 
-def configure(kr=8, nc=8, ab=3, wb=3, g=1, h=1):
+def configure(kr=8, nc=8, ab=3, wb=3, g=1, h=1, align_act=False):
     """Pick the array.  kr/g: power of two (ref-column normalisation) <= 128.  nc: any multiple of h (heads spill
-    to more layers).  g: activations per ACT token, h: outputs per READ/OUT token."""
+    to more layers).  g: activations per ACT token, h: outputs per READ/OUT token.  align_act: pad the CELL range so that
+    ACT0 is a multiple of NOUT**g (v2 vector sequencer: the next-token id is then base + digits with no carry)."""
     global KR, NC, AB, WB, G, H, KS, QROWS, NOUT, NW, AMAX, NOP, OUT0, CELL0, ACT0, READ0, NACT, NREAD, VOCAB, CODE
     assert 1 <= wb <= 6 and 1 <= ab <= 6 and kr % g == 0 and nc % h == 0
     KR, NC, AB, WB, G, H, KS = kr, nc, ab, wb, g, h, kr // g
@@ -47,6 +48,7 @@ def configure(kr=8, nc=8, ab=3, wb=3, g=1, h=1):
     assert QROWS <= 128, "KR/g = 64 needs 128 query rows; 128 is unsupported"
     NOUT, NW, AMAX = 1 << AB, 1 << WB, (1 << AB) - 1
     OUT0 = 0; NOP = NOUT ** H; CELL0 = NOP + 1; ACT0 = CELL0 + KR * NC * NW
+    if align_act: ACT0 += -ACT0 % NOUT ** G
     NACT = KS * NOUT ** G; READ0 = ACT0 + NACT; NREAD = NC // H
     VOCAB = list(range(READ0 + NREAD)); CODE = max(8, (len(VOCAB) - 1).bit_length())
     return KR, NC, AB, WB, G, H

@@ -48,6 +48,25 @@ def test_one_compiled_model_many_programs(dmax, n, ab, wb):
     assert len(lens) == dmax and len(shapes) >= dmax
 
 
+@pytest.mark.parametrize("dmax,n,ab,wb,vec", [(4, 4, 3, 3, 2), (2, 8, 3, 3, 2), (2, 8, 3, 3, 4)])
+def test_vector_machine_many_programs(dmax, n, ab, wb, vec):
+    """vec neurons per token: one compiled model still runs every depth 1..Dmax, with `vec` times fewer emitted tokens."""
+    seq = ProgramMachine(dmax, n, ab, wb, vec=vec).install()
+    rng = np.random.default_rng(dmax * 10 + n + vec)
+    lens = set()
+    for depth in range(1, dmax + 1):
+        widths = [int(rng.integers(1, n)) for _ in range(depth + 1)]
+        Ws, x = rand_prog(rng, depth, widths, n)
+        p = seq.program_prompt(Ws, x)
+        em = seq.expected(p)
+        assert len(em) == 2 * depth * n // vec
+        _, pred = run_ir(seq, p, em)
+        assert pred == em + [seq.halt]
+        assert seq.program_logits(em, Ws[-1].shape[1]) == list(ref_chain(Ws, x))
+        lens.add(len(em))
+    assert len(lens) == dmax
+
+
 def test_program_prompt_is_data_only():
     seq = ProgramMachine(4, 4).install()
     rng = np.random.default_rng(1)

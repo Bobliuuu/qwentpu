@@ -48,21 +48,23 @@ class Schedule:
 class Sequencer:
     """Compile-time object: extends the circuit's vocabulary with OUTK/HALT tokens and supplies the next-token bits."""
 
-    def __init__(self, depth=2, width=4, ab=3, wb=3):
-        self.depth, self.width, self.ab, self.wb = depth, width, ab, wb
-        self.sched = Schedule.chain(depth, width)
+    def __init__(self, depth=2, width=4, ab=3, wb=3, vec=1):
+        """vec = neurons per token (g = h = vec of the circuit): an ACT token carries `vec` activations and a READ/OUTK
+        token `vec` outputs, so the chain emits 2*depth*width/vec tokens.  vec=1 is the scalar chain (docs/V2_VECTORIZED.md)."""
+        assert width % vec == 0, "width must be a multiple of vec"
+        self.depth, self.width, self.ab, self.wb, self.vec = depth, width, ab, wb, vec
+        self.sched = Schedule.chain(depth, width // vec)          # the chain in token slots: each slot = vec rows / columns
 
     # -- install ----------------------------------------------------------------------------------------------
     def install(self):
         """Configure the circuit for the packed array and add the sequencer's tokens.  Call before C.build() /
         merge.build_merged(); call `uninstall()` to get the plain v1 circuit back."""
-        d, n = self.depth, self.width
-        C.configure(d * n, d * n, self.ab, self.wb)
-        assert C.G == 1 and C.H == 1, "sequencer supports g = h = 1"
-        self.low = C.ACT0 % C.NOUT                                # alignment shared by ACT and OUTK ids
+        d, n, v = self.depth, self.width, self.vec
+        C.configure(d * n, d * n, self.ab, self.wb, v, v, align_act=v > 1)
+        self.low = C.ACT0 % C.NOUT ** v                           # alignment shared by ACT and OUTK ids (0 when vec > 1)
         base = C.READ0 + C.NREAD
-        self.outk0 = base + (self.low - base) % C.NOUT
-        self.halt = self.outk0 + n * C.NOUT
+        self.outk0 = base + (self.low - base) % C.NOUT ** v
+        self.halt = self.outk0 + (n // v) * C.NOUT ** v
         C.VOCAB = list(range(self.halt + 1)); C.CODE = max(8, (len(C.VOCAB) - 1).bit_length())
         C.SEQ = self
         return self
@@ -72,11 +74,11 @@ class Sequencer:
         C.SEQ = None; C.configure(8, 8, 3, 3)
 
     # -- tokens -----------------------------------------------------------------------------------------------
-    def tok_outk(self, j, v): return self.outk0 + j * C.NOUT + int(v)
+    def tok_outk(self, j, *vs): return self.outk0 + j * C.NOUT ** C.H + sum(int(v) * C.NOUT ** t for t, v in enumerate(vs))
 
     def base(self, k):
         kind, i = self.sched.routes[k]
-        return C.tok_act(i, 0) if kind == "act" else self.tok_outk(i, 0)
+        return C.tok_act(i, *[0] * C.G) if kind == "act" else self.tok_outk(i, *[0] * C.H)
 
     def read_index(self, t): return t - C.READ0 if C.READ0 <= t < C.READ0 + C.NREAD else None
 
@@ -84,10 +86,10 @@ class Sequencer:
         """Fixed successor of a non-READ token (NOP if none)."""
         S = self.sched
         if C.ACT0 <= t < C.READ0:
-            k = S.act_next.get((t - C.ACT0) // C.NOUT)
+            k = S.act_next.get((t - C.ACT0) // C.NOUT ** C.G)
             return C.NOP if k is None else C.tok_read(k)
         if self.outk0 <= t < self.halt:
-            k = S.out_next[(t - self.outk0) // C.NOUT]
+            k = S.out_next[(t - self.outk0) // C.NOUT ** C.H]
             return self.halt if k is None else C.tok_read(k)
         return self.halt if t == self.halt else C.NOP
 
@@ -98,6 +100,7 @@ class Sequencer:
           bit i < AB : (u + low) mod NOUT, bit i       -> per-value indicator terms (gated by is_read)
           bit i >= AB: bit (i-AB) of Hk + [u >= NOUT-low]   -> token feature  +  carry feature * [u >= NOUT-low]
         For tokens that are not READ the table `succ` supplies the bits."""
+        if self.vec > 1: return self._nxt_terms_vec(g, i, ctx)
         one, f, is_read, (u, lo, hi) = ctx["one"], ctx["f"], ctx["is_read"], ctx["slots"][0]
         AB, N, low = C.AB, C.NOUT, self.low
 
@@ -124,6 +127,24 @@ class Sequencer:
             terms += [(c, d, b) for c, _, b in g.terms_ge(u, N - low, lo, hi, 1, (is_read,))]
         return terms
 
+    def _nxt_terms_vec(self, g, i, ctx):
+        """vec > 1: ACT0 and OUTK are multiples of NOUT**vec, so next = base(READ k) + sum_t clamp(u_t) NOUT**t has no carry.
+        Bits >= vec*AB are the token feature (base, or the fixed successor of a non-READ token); bit t*AB + a below that is
+        bit a of slot t's requantised value, read off the adder tree exactly as in the v1 code stage."""
+        one, f, is_read = ctx["one"], ctx["f"], ctx["is_read"]
+
+        def s_fn(t):
+            k = self.read_index(t)
+            return ((self.succ(t) if k is None else self.base(k)) >> i) & 1
+
+        terms = [(1, one, f(f"seq_s{i}", s_fn))]
+        if i < self.vec * C.AB:
+            t, a = divmod(i, C.AB); u, lo, hi = ctx["slots"][t]
+            if (C.AMAX >> a) & 1: terms += g.terms_ge(u, C.AMAX, lo, hi, 1, (is_read,))
+            for v in range(1, C.AMAX):
+                if (v >> a) & 1: terms += g.terms_eq(u, v, lo, hi, (is_read,))
+        return terms
+
     # -- prompt / reference -----------------------------------------------------------------------------------
     def prompt(self, Ws, x):
         """Chip-token prompt for y = f(...f(x)): all weights (block-diagonal CELLs) then the zero-filled rows of layers 1.. and the input rows of layer 0.
@@ -142,7 +163,9 @@ class Sequencer:
         assert len(x) == n and 0 <= min(x) and max(x) <= C.AMAX
         # every accumulator row must hold a write before the first READ (the head normalises by the number of written
         # rows), so the other layers' rows are written with 0 first; the input rows come last (ACT(n-1) -> READ(0)).
-        return C.load_trace(Wp) + [C.tok_act(s, 0) for s in range(n, KR)] + [C.tok_act(s, x[s]) for s in range(n)]
+        gg = C.G                                                   # activations per ACT token (1 unless vec > 1)
+        return (C.load_trace(Wp) + [C.tok_act(s, *[0] * gg) for s in range(n // gg, KR // gg)]
+                + [C.tok_act(s, *x[s * gg:(s + 1) * gg]) for s in range(n // gg)])
 
     def expected(self, prompt):
         """Numpy emulation of what the model must emit (golden).  Independent of the circuit: it parses the prompt
@@ -153,19 +176,29 @@ class Sequencer:
                 c, w = divmod(t - C.CELL0, C.NW); r, c = divmod(c, C.NC)
                 Wp[r, c] = w - C.NW if w >= C.NW // 2 else w
             elif C.ACT0 <= t < C.READ0:
-                a[(t - C.ACT0) // C.NOUT] = (t - C.ACT0) % C.NOUT
-        out, cur = [], prompt[-1]
+                self._write(a, t)
+        out, cur, H = [], prompt[-1], C.H
         while len(out) < 8 * C.KR:
             k = self.read_index(cur)
-            nxt = self.base(k) + int(np.clip(max(a @ Wp[:, k], 0), 0, C.AMAX)) if k is not None else self.succ(cur)
+            if k is None: nxt = self.succ(cur)
+            else:
+                y = np.clip(np.maximum(a @ Wp[:, k * H:(k + 1) * H], 0), 0, C.AMAX)
+                nxt = self.base(k) + sum(int(v) * C.NOUT ** j for j, v in enumerate(y))
             if nxt == self.halt: break
             out.append(nxt); cur = nxt
-            if C.ACT0 <= nxt < C.READ0: a[(nxt - C.ACT0) // C.NOUT] = (nxt - C.ACT0) % C.NOUT
+            if C.ACT0 <= nxt < C.READ0: self._write(a, nxt)
         return out
+
+    @staticmethod
+    def _write(a, t):
+        """ACT token t writes its G activations into rows s*G .. s*G+G-1."""
+        s, vs = divmod(t - C.ACT0, C.NOUT ** C.G)
+        for j in range(C.G): a[s * C.G + j] = (vs // C.NOUT ** j) % C.NOUT
 
     def logits(self, emitted):
         """The network output: the values carried by the OUTK tokens, in order."""
-        return np.array([(t - self.outk0) % C.NOUT for t in emitted if self.outk0 <= t < self.halt])
+        return np.array([(((t - self.outk0) % C.NOUT ** C.H) // C.NOUT ** j) % C.NOUT
+                         for t in emitted if self.outk0 <= t < self.halt for j in range(C.H)])
 
 
 def ref_chain(Ws, x):
