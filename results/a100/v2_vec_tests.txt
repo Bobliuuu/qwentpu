@@ -1,0 +1,3 @@
+# tests/test_sequencer.py tests/test_sequencer2.py on the A100 box with QWEN_DIR=Qwen3.5-0.8B (includes test_merged_qwen_host_only_argmax for vec 1 and 2)
+2026-11-05T01:48Z
+25 passed in 37.77s
