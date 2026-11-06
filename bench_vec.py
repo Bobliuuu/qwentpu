@@ -21,7 +21,7 @@ from qwentpu.merge import build_merged, instantiate                 # noqa: E402
 from qwentpu.sequencer2 import ProgramMachine, generate, ref_chain  # noqa: E402
 from test_sequencer2 import rand_prog                               # noqa: E402
 
-SRC = os.environ.get("QWEN_DIR", "/home/ubuntu/qwentpu_gpu/q08")
+SRC = os.environ.get("QWEN_DIR") or sys.exit("set QWEN_DIR to a Qwen3.5 checkpoint directory")
 CFGS = [(4, 4, 3, 3, (1, 2, 4)), (2, 8, 3, 3, (1, 2, 4)), (2, 8, 5, 5, (1, 2)), (2, 16, 5, 5, (1, 2))]
 if os.environ.get("CFGS"):
     CFGS = [c for i, c in enumerate(CFGS) if str(i) in os.environ["CFGS"].split(",")]

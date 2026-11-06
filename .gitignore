@@ -8,3 +8,8 @@ social/anim/out/chk/
 social/anim/out/stills/
 social/anim/out/chk2/
 social/anim/out/chk3/
+
+.DS_Store
+social/anim/.v2_ir_cache.json
+*.egg-info/
+ubuntu@*
