@@ -223,7 +223,7 @@ Qwen's cache, so a TPU run leaves no trace in Qwen's context *by construction*, 
 | Xeon, batch 1 (same replay) | 171.5 | **2,128** (12×) |
 | Xeon, free-running matvec/s | 1.59 | **25.47** (16×) |
 
-*A100 rows come from two replays with different trace lengths (768 vs 3,072 tokens); the Xeon rows are the same trace both ways.*
+*The A100 rows are one trace (1,728 positions, `results/a100/ab_same_trace.jsonl`); the Xeon rows are the same trace both ways.*
 
 ### Optimization 3: read the answer off the sign bits
 
@@ -252,10 +252,11 @@ Every row matched NumPy. An eager A100 baseline for this loop was not saved, so 
 
 See the README for the tables. Everything below is read from the raw logs in `results/` (replays `*.jsonl`, pytest outcomes `*.suite`).
 
-* **Exactness:** 1,139,712 replayed outputs, 0 mismatches against NumPy, on an A100, an A10G, an L4 and a Xeon, across 0.8B, 2B and 4B
-  (4B on the A100 and the Xeon only). Every recorded `.suite` outcome is `10 passed`; the Xeon logs come from an earlier 7-test suite.
-* **Text:** pure-text KL vs base is asserted below 5e-3 and chip tokens below -1e3 logit at text positions. The suite does not log the KL values themselves.
-* **Invisibility:** the chip-only path never touches Qwen's cache and is asserted bit-identical (KL = 0.0). `HybridSession`'s cache restore is asserted below 1e-4 against a run with no chip activity.
+* **Exactness:** 1,361,280 replayed outputs, 0 mismatches against NumPy, on five machines (A100, A10G, L4, T4 and a Xeon), across 0.8B, 2B and 4B.
+  Suite runs clean: A100 18 of 18, A10G 16 of 16, L4 16 of 16, Xeon 14 of 14, T4 9 of 12 (the three failures are out-of-memory errors in 2B runs on its 16 GB; the replay there still ran).
+  A passing suite is 10 tests on the A100, the T4 and the 0.8B and 2B runs on the 24 GB cards, 11 or 12 for the 4B runs on those cards (tests were added later), and 7 on the Xeon (an earlier suite).
+* **Text:** pure-text KL vs base is asserted below 5e-3 and chip tokens below -1e3 logit at text positions. `results/a100/kl.out` records the values: 3.2e-4 to 7.8e-4 across three prompts on 0.8B, 2B and 4B, with argmax agreement 1.00 on all but one 4B prompt (0.95).
+* **Invisibility:** the chip-only path never touches Qwen's cache and is asserted bit-identical (KL = 0.0). With muting alone, the per-position KL after a chip run is 1.1 to 1.3 at the first text token and a mean of 0.014 to 0.059 from the fourth on (`kl.out`). `HybridSession`'s cache restore brings it to 0.0 against a run with no chip activity (asserted below 1e-4).
 * **Scaling:** 64, 256 and 1,024 MACs per matvec at 16, 32 and 64 tokens: 4, 8, 16 MACs/token.
 
 ### What we observed
@@ -265,20 +266,19 @@ See the README for the tables. Everything below is read from the raw logs in `re
 * **Depth vs width.** A100, batch 16, 16×16: u3s2 (2 chip layers) 3.05M MACs/s, u4s4 (5 layers) 1.35M, u5s5 (10 layers) 0.65M.
 * **Chip-only path.** 8×8, 0.8B, batch 1: 6,629 to 74,462 tok/s on the A100 (11×, same trace) and 171.5 to 2,128 on the Xeon (12×, same trace). Free-running on the Xeon: 1.59 to 25.47 matvec/s.
 * **CUDA graphs.** A100 free-running chained matvecs, TPU layers only: 705 matvec/s on 8×8 u3s3, 684 on 8×8 `g2h2`, 629 on 16×16 u3s2, 281 on 16×16 u4s4, 215 on 32×32 u3s3, 205 on 16×16 u3s2 `g4h4`, 65 on 32×32 `g4h4`; all matched NumPy. No eager A100 baseline for this loop was saved, so no speedup is quoted.
+* **torch.compile (tried and rejected).** `results/a100/compile_experiments.jsonl`, 8×8 chip-only trace, 20 cases: eager 74,630 tok/s, CUDA graph 351,039; `compile:default` 96,190 and `compile:max-autotune-no-cudagraphs` 107,703 keep the hidden state bit-identical but are far behind the graph; `compile:reduce-overhead` (97,997) and `compile:max-autotune` (98,095) change the hidden state. CUDA graphs stay the fast path (the experiment script, `exp_fuse.py`, is in the git history: `git log -- exp_fuse.py`).
 * **Batching and model size.** 8×8 TPU layers on the A100: 107k tok/s at batch 1, 487k at batch 16. Full-network 8×8 u3s3 at batch 16: 33,074 (0.8B), 28,401 (2B), 13,773 (4B).
-* **Memory.** The first fixtures held base, merged and mutated models at once and ran the A10G and L4 (24 GB) and the 40 GB A100 out of memory in the mutation, XOR/MLP and restore tests. The base model is now rebuilt on demand and freed after each forward pass, so 2B fits 24 GB GPUs and 16 GB hosts. Recorded 2B suite passes on 24 GB cards: A10G on three arrays, L4 on two; the remaining 2B runs there have no recorded outcome.
+* **Memory.** The first fixtures held base, merged and mutated models at once and ran the A10G and L4 (24 GB) and the 40 GB A100 out of memory in the mutation, XOR/MLP and restore tests. The base model is now rebuilt on demand and freed after each forward pass, so 2B fits 24 GB GPUs and 16 GB hosts. Recorded 2B suite passes on the 24 GB cards: all six arrays on the A10G and on the L4.
 * **Two bugs only a second GPU could find:** the irrational query scale and cuBLAS bf16 split-K (both in section 3).
 
 ## 7. Honest limits
 
-* Depth: wide operands cost chip layers (multi-pass clamps): 16×16 u5s5 and 32×32 u4s4 are 10 layers, 64×64 u3s3 is 12 (compiled only, not run on a model).
+* Depth: wide operands cost chip layers (multi-pass clamps): 16×16 u5s5 and 32×32 u4s4 are 10 layers, 64×64 u3s3 is 12 (run on the A100 on 0.8B, 2B and 4B: 13,824 positions at batch 1 and 110,592 at batch 8 per model, 0 mismatches; `results/a100/a100.jsonl`).
 * Muting alone leaves the first ~3 text tokens after a chip run perturbed (Qwen's conv window). The driver's cache restore (`HybridSession`) removes it, but it is a host-side cache operation, not a weight-level fix.
 * Text-only checkpoints (vision tower dropped). Inference only; no backprop (TinyTPU's other half).
 * The driver streams tokens and relabels an output as the next activation; it does no arithmetic.
 * GPU numbers use HF + flash-linear-attention. There is no fused custom executor: CUDA graphs remove launch overhead, not the cost of the HF kernels.
 * Teacher-forced numbers are prefill throughput: a matvec's tokens do not depend on each other, only the hop between layers does.
-* Coverage is limited to the machines with logs in `results/`.
-* The tweets are on X and the threads were not fetchable; qwenGPU details come from tweet text.
 
 ## 8. v2: a TPU that runs a program
 

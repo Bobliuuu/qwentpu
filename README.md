@@ -14,9 +14,9 @@
 
 ---
 
-We took a stock **Qwen3.5** (0.8B, 2B or 4B), compiled a few new layers into it, and it now contains a **weight-stationary matrix-multiply array**:
-up to **32×32 (1,024 MACs per matvec)** with up to **5-bit operands**. Every new weight is computed; Qwen's own weights are untouched. Output is integer-exact against NumPy
-(0 mismatches in 1,139,712 replayed token positions on four machines), plain text generation is unchanged (KL 3e-4 to 8e-4), and a TPU run leaves no trace in Qwen's context.
+We took a stock **Qwen3.5** (0.8B, 2B or 4B), compiled a few new layers into it, and it now contains a **weight-stationary matrix-multiply array**,
+up to **64×64 (4,096 MACs per matvec, at 3-bit)**, with operands up to **5 bits** (16×16 u5s5). Every new weight is computed; Qwen's own weights are untouched. Output is integer-exact against NumPy
+(0 mismatches in 1,361,280 replayed token positions on five machines), plain text generation is unchanged (KL 3e-4 to 8e-4), and on the chip-only path (or with the driver's cache restore) a TPU run leaves no trace in Qwen's context.
 
 <p align="center"><a href="docs/qwentpu_demo.mp4"><img src="docs/demo.gif" alt="qwenTPU v1 running a matvec inside Qwen3.5, token by token" width="100%"></a><br><sub>v1 running inside Qwen3.5-0.8B on real tokens. <a href="docs/qwentpu_demo.mp4">Full 70 s video (mp4)</a></sub></p>
 
@@ -74,6 +74,7 @@ The accumulator returns *counts* of rows with activation bit *a* and weight bit 
 | 8×8, **5-bit** | 7 |
 | 16×16, **5-bit** | 10 |
 | 32×32, 3-bit | 6 |
+| 64×64, 3-bit | 12 |
 
 ## ⚡ Speed
 
@@ -83,7 +84,7 @@ Depth is the price of width, and the biggest wins are in skipping work, not addi
 |---|---|
 | whole network, batch 1, same trace | 6,629 tok/s |
 | **TPU layers only** (Qwen's muted layers skipped, bit-identical) | **74,462 tok/s** (11×) |
-| TPU layers only, **one CUDA graph per trace** (`bench.py --graph`, bit-identical) | **~341,000 tok/s** (mean of 3 runs ×2 traces, range 299k-377k; 4.6× over the eager TPU-layers rerun at 75,207) |
+| TPU layers only, **one CUDA graph per trace** (`bench.py --graph`, bit-identical) | **~341,000 tok/s** (mean of 3 runs ×2 traces, range 299k-377k; 4.5× over the eager TPU-layers rerun at 75,207) |
 | free-running chained matvecs, TPU layers + **CUDA graphs** | **705 matvec/s** |
 
 <p align="center"><img src="docs/chip-path.svg" alt="chip-only path" width="100%"></p>
@@ -111,9 +112,9 @@ The T4 passes all 0.8B suite runs and the three smallest 2B ones, then runs out 
 
 ## 🧬 v2: a TPU that runs a program
 
-<p align="center"><a href="docs/qwentpu_v2_demo.mp4"><img src="docs/anim/v2_demo.gif" alt="v2 classifying digits: the model emits every token itself" width="100%"></a><br><sub>v2 classifying held-out digits through Qwen3.5-0.8B, animated from the real traces. <a href="docs/qwentpu_v2_demo.mp4">Full 75 s video (mp4)</a></sub></p>
+<p align="center"><a href="docs/qwentpu_v2_demo.mp4"><img src="docs/anim/v2_demo.gif" alt="v2 classifying digits: the model emits every token itself" width="100%"></a><br><sub>v2 classifying held-out digits through Qwen3.5-0.8B, animated from the real traces. <a href="docs/qwentpu_v2_demo.mp4">Full 79 s video (mp4)</a></sub></p>
 
-Two versions live in this repo. v1 is tagged `v1.0`; v2 is on `main` as new files and leaves v1 bit-identical.
+Two versions live in this repo. v1 is tagged `v1.0`; v2 is on `main` as new files; the v1 test suite still passes unchanged on it (v1 and v2 share `circuit.py`, `driver.py` and `merge.py`, which gained small hooks, and no test compares v1 output against the `v1.0` tag).
 
 | | **v1: matvec array** | **v2: a TPU that runs a program** |
 |---|---|---|
@@ -122,7 +123,7 @@ Two versions live in this repo. v1 is tagged `v1.0`; v2 is on `main` as new file
 | What the host does | drives the machine token by token | builds the prompt (weights, input, entry point) and runs `argmax; append` until HALT |
 | Nonlinearity | none | `clip(relu(x@W), 0, max)` in the datapath, at zero extra layers |
 | What the prompt chooses | data only | the network: depth, per-layer widths, weights, input |
-| Proven on | A100, A10G, L4, x86 Xeon (1,139,712 replayed positions, 0 mismatches) | Qwen3.5-0.8B on an A100 (below) |
+| Proven on | A100, A10G, L4, T4, x86 Xeon (1,361,280 replayed positions, 0 mismatches) | Qwen3.5-0.8B on an A100 (below) |
 
 **v2 results** (`results/a100/v2_prog.txt`, `results/a100/v2_feedback.txt`; bf16, real Qwen3.5-0.8B on an A100):
 

@@ -10,8 +10,9 @@ All token ids below are *symbolic*; `isa.py` computes real ids from `circuit.con
 
 * Array: `KR x NC` weight-stationary matvec array, activations unsigned `AB` bits (0..AMAX, AMAX=2^AB-1),
   weights two's complement `WB` bits (-2^(WB-1)..2^(WB-1)-1), exact integer accumulate (no overflow possible).
-  Defaults for v2 programs: **16x16, AB=WB=5, g=h=1** (10 chip layers, validated on real models).
-  8x8 u5s5 (7 layers) is the cheap fallback; 32x32 is only validated at 3-bit, so don't plan on 32x32 u5s5.
+  Defaults for v2 programs: **16-wide, AB=WB=5, g=h=1**. One 16x16 u5s5 stage is 10 chip layers; the depth-2 golden MLP
+  (`ProgramMachine(2, 16, 5, 5)`, two such stages in a 32x32 u5s5 array) is 20 chip layers and ran exact on the real 0.8B (`results/a100/v2_prog.txt`).
+  8x8 u5s5 (7 layers) is the cheap fallback.
 * **Weight banks** `B0..B{NB-1}` (NB = 2 for the MLP example, max 4): NB independent weight arrays (extra
   weight/accumulator heads, selected by bank id). Needed because a layer-2 `LOAD_WEIGHTS` cannot be host-fed
   mid-run. (Fallback if banks are too expensive: NB=1 and the host injects `LOADW`+CELL tokens between layers; this
