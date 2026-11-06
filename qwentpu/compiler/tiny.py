@@ -14,6 +14,17 @@ BASE = {"hidden_act": "silu", "intermediate_size": 3584, "linear_conv_kernel_dim
 CODE_GAIN = 2.0 ** 20      # final-norm gain on the output code dims
 
 
+def to_device(model):
+    """Move a tiny model to the GPU when there is one. Where flash-linear-attention is installed its kernels need
+    GPU tensors, and a model left on the CPU fails with a Triton "cpu tensor" error; the split-K guard goes on
+    with it, since the circuit's integer arithmetic must not be re-associated by cuBLAS."""
+    if torch.cuda.is_available():
+        from ..merge import exact_matmul
+        exact_matmul()
+        return model.to("cuda")
+    return model
+
+
 def build(g, vocab, code_dims, dtype=torch.bfloat16):
     from transformers import Qwen3_5ForCausalLM, Qwen3_5TextConfig
     from .emit import pick_layout

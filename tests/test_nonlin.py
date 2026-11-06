@@ -121,7 +121,7 @@ def build_nonlin_model(cfg, shift, dtype):
     bits = N.slot_bits(rqs, C.H)
     code = [g.token_feature(f"nc{i}", lambda t, i=i: 128 * (2 * ((t >> i) & 1) - 1)) for i in range(C.CODE)]
     N.code_ffn(g, bits, code)
-    model = tiny.build(g, C.VOCAB, [next(iter(c.t)) for c in code], dtype=dtype)
+    model = tiny.to_device(tiny.build(g, C.VOCAB, [next(iter(c.t)) for c in code], dtype=dtype))
     return g, model
 
 
@@ -141,7 +141,7 @@ def test_hf_relu_requant_after_matmul(cfg, shift):
                     C.tok_out(*N.reference(x @ W, shift, C.NOUT - 1)[k * C.H:(k + 1) * C.H]) for k in range(C.NREAD))})
                 toks += C.matvec_trace(x)
             with torch.no_grad():
-                logits = model(torch.tensor([toks])).logits[0].float()
+                logits = model(torch.tensor([toks], device=next(model.parameters()).device)).logits[0].float().cpu()
             pred = logits[:, : len(C.VOCAB)].argmax(-1).numpy()
             bad = [(t, int(pred[t]), w) for t, w in want.items() if pred[t] != w]
             assert not bad, (dtype, bad[:5])

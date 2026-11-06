@@ -21,11 +21,11 @@ def make_tokens(n_vec=8):
 @pytest.mark.parametrize("dtype", [torch.bfloat16, torch.float32], ids=["bf16", "fp32"])
 def test_hf_matches_ir_and_numpy(dtype):
     g, d = C.build()
-    model = tiny.build(g, C.VOCAB, [next(iter(c.t)) for c in d["code"]], dtype=dtype)
+    model = tiny.to_device(tiny.build(g, C.VOCAB, [next(iter(c.t)) for c in d["code"]], dtype=dtype))
     toks, want = make_tokens()
-    ids = torch.tensor([toks])
+    ids = torch.tensor([toks], device=next(model.parameters()).device)
     with torch.no_grad():
-        logits = model(ids).logits[0].float()
+        logits = model(ids).logits[0].float().cpu()
     pred = logits[:, : len(C.VOCAB)].argmax(-1).numpy()
     bad = [(t, int(pred[t]), w) for t, w in enumerate(want) if pred[t] != w]
     assert not bad, bad[:5]
