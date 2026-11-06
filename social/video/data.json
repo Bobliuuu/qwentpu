@@ -29,7 +29,7 @@
    "clean": {
     "value": 18,
     "unit": "",
-    "source": "results/a100/a100.suite, a100q08.suite; docs/site/data/results.json"
+    "source": "results/a100/a100.suite, a100q08.suite"
    },
    "total": {
     "value": 18,
@@ -41,68 +41,99 @@
    "id": "a10g",
    "label": "A10G 24GB",
    "arch": "Ampere sm86",
-   "models": "0.8B, 2B",
+   "models": "0.8B, 2B, 4B",
    "positions": {
-    "value": 221184,
+    "value": 273024,
     "unit": "",
-    "source": "results/a10g/a10g.jsonl"
+    "source": "results/a10g/a10g.jsonl, a10g_4b.jsonl"
    },
    "arrays": {
     "value": 8,
     "unit": "",
-    "source": "results/a10g/a10g.jsonl"
+    "source": "results/a10g/a10g.jsonl, a10g_4b.jsonl"
    },
    "mismatches": {
     "value": 0,
     "unit": "",
-    "source": "results/a10g/a10g.jsonl"
+    "source": "results/a10g/a10g.jsonl, a10g_4b.jsonl"
    },
    "clean": {
-    "value": 12,
+    "value": 16,
     "unit": "",
-    "source": "results/a10g/a10g_final.suite"
+    "source": "results/a10g/a10g_final.suite, a10g_4b.suite"
    },
    "total": {
-    "value": 12,
+    "value": 16,
     "unit": "",
-    "source": "results/a10g/a10g_final.suite"
+    "source": "results/a10g/a10g_final.suite, a10g_4b.suite"
    }
   },
   {
    "id": "l4",
    "label": "L4 24GB",
    "arch": "Ada sm89",
-   "models": "0.8B, 2B",
+   "models": "0.8B, 2B, 4B",
    "positions": {
-    "value": 190464,
+    "value": 211584,
     "unit": "",
-    "source": "results/l4/l4.jsonl"
+    "source": "results/l4/l4.jsonl, l4_4b.jsonl"
    },
    "arrays": {
     "value": 8,
     "unit": "",
-    "source": "results/l4/l4.jsonl"
+    "source": "results/l4/l4.jsonl, l4_4b.jsonl"
    },
    "mismatches": {
     "value": 0,
     "unit": "",
-    "source": "results/l4/l4.jsonl"
+    "source": "results/l4/l4.jsonl, l4_4b.jsonl"
    },
    "clean": {
-    "value": 12,
+    "value": 16,
     "unit": "",
-    "source": "results/l4/l4_final.suite"
+    "source": "results/l4/l4_final.suite, l4_4b.suite"
+   },
+   "total": {
+    "value": 16,
+    "unit": "",
+    "source": "results/l4/l4_final.suite, l4_4b.suite"
+   }
+  },
+  {
+   "id": "t4",
+   "label": "T4 16GB",
+   "arch": "Turing sm75",
+   "models": "0.8B, 2B, 4B",
+   "positions": {
+    "value": 148608,
+    "unit": "",
+    "source": "results/t4/t4_replay.jsonl, t4_q4_replay.jsonl"
+   },
+   "arrays": {
+    "value": 6,
+    "unit": "",
+    "source": "results/t4/t4_replay.jsonl, t4_q4_replay.jsonl"
+   },
+   "mismatches": {
+    "value": 0,
+    "unit": "",
+    "source": "results/t4/t4_replay.jsonl, t4_q4_replay.jsonl"
+   },
+   "clean": {
+    "value": 9,
+    "unit": "",
+    "source": "results/t4/t4_final.suite (3 of 12 runs ran out of 16 GB)"
    },
    "total": {
     "value": 12,
     "unit": "",
-    "source": "results/l4/l4_final.suite"
+    "source": "results/t4/t4_final.suite (3 of 12 runs ran out of 16 GB)"
    }
   },
   {
    "id": "xeon",
    "label": "x86 Xeon (c6i)",
-   "arch": "Ice Lake, CPU",
+   "arch": "x86-64",
    "models": "0.8B, 2B, 4B",
    "positions": {
     "value": 23040,
@@ -129,26 +160,10 @@
     "unit": "",
     "source": "results/xeon/cpu_final.log"
    }
-  },
-  {
-   "id": "t4",
-   "label": "T4 16GB",
-   "arch": "Turing sm75",
-   "models": "0.8B, 2B",
-   "clean": {
-    "value": 9,
-    "unit": "",
-    "source": "results/t4/t4_final.suite (9 of 12 runs 10 passed; 3 ran out of 16 GB)"
-   },
-   "total": {
-    "value": 12,
-    "unit": "",
-    "source": "results/t4/t4_final.suite"
-   }
   }
  ],
  "total_outputs": {
-  "value": 1139712,
+  "value": 1361280,
   "unit": "",
   "source": "results/outputs.txt"
  },
@@ -343,7 +358,7 @@
     [
      0.3,
      4.8,
-     "Replayed against NumPy on four machines: zero mismatches."
+     "Replayed against NumPy on five machines: zero mismatches."
     ],
     [
      5,

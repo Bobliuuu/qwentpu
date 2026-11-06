@@ -14,7 +14,7 @@ function tx(s,x,y,o={}){const{size:z=28,weight:wt=600,color:c=C.ink,align:a='lef
 function ln(x1,y1,x2,y2,c,w=3,d){ctx.save();ctx.strokeStyle=c;ctx.lineWidth=w;if(d)ctx.setLineDash(d);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.restore()}
 function dotc(x,y,r,c,g){ctx.save();if(g){ctx.shadowColor=c;ctx.shadowBlur=g}ctx.fillStyle=c;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();ctx.restore()}
 function mixc(a,b,x){const p=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];const A=p(a),B=p(b);return `rgb(${A.map((v,i)=>Math.round(lerp(v,B[i],x))).join(',')})`}
-const J=TRACE.jobs;
+const J=TRACE.jobs.slice(0,3);   // the master shows the first three jobs; trace.json also carries the adder job used by adder.html
 // ---- per-job timing -------------------------------------------------------------------------------
 const P=[{lead:1.6,dt:{CELL:.05,ACT:.30,READ:.42},tail:3.4,rate:6628.6,src:'whole network'},
          {lead:1.6,dt:{CELL:.0125,ACT:.22,READ:.30},tail:3.2,rate:6149.1,src:'whole network'},
@@ -52,7 +52,7 @@ function outro(u){
  const f=a=>eo(prog(u,a,a+.5));
  tx('qwenTPU',W/2,300,{size:130,weight:800,align:'center',color:C.blue,alpha:f(.2)});
  tx('A TPU compiled into the weights of a stock Qwen3.5. No training.',W/2,385,{size:40,weight:600,align:'center',color:C.mut,alpha:f(.8)});
- const items=[['1,139,712','token positions replayed'],['0','mismatches'],['4','A100 \u00B7 A10G \u00B7 L4 \u00B7 Xeon']];
+ const items=[['1,361,280','token positions replayed'],['0','mismatches'],['5','A100 \u00B7 A10G \u00B7 L4 \u00B7 T4 \u00B7 Xeon']];
  items.forEach((it,i)=>{const x=250+i*480,a=f(2+i*.35);ctx.save();ctx.globalAlpha=a;rr(x,450,440,190,20,C.panel,C.line,2);tx(it[0],x+220,540,{size:68,weight:800,align:'center',mono:true,color:i===1?C.gr:C.ink});tx(it[1],x+220,600,{size:26,weight:600,align:'center',color:C.mut});ctx.restore()});
  tx('github.com/Bobliuuu/qwentpu',W/2,740,{size:54,weight:700,align:'center',mono:true,alpha:f(4)});
  tx('bobliuuu.github.io/qwentpu',W/2,810,{size:40,weight:600,align:'center',mono:true,color:C.mut,alpha:f(4.4)});

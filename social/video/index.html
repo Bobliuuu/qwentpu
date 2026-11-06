@@ -179,15 +179,14 @@ S.exact=(el,t)=>{
  let h=`<div class="abs" style="left:0;right:0;top:112px;text-align:center;font-size:34px;color:${C.mut}">Same suite, same replay against NumPy, on every machine we could get</div>`;
  const hw=D.hardware, cw=330, gap=20, x0=(1920-(5*cw+4*gap))/2;
  hw.forEach((d,i)=>{
-  const a=eo(prog(t,.3+i*.5,1.1+i*.5)), t4=d.id==='t4';
-  const cnt=t4?0:Math.round(v(d.positions)*eo(prog(t,.6+i*.5,2.6+i*.5)));
+  const a=eo(prog(t,.3+i*.5,1.1+i*.5)), t4=d.clean.value<d.total.value;
+  const cnt=Math.round(v(d.positions)*eo(prog(t,.6+i*.5,2.6+i*.5)));
   const col=t4?C.am:C.te;
   h+=`<div class="abs card" style="left:${x0+i*(cw+gap)}px;top:${190+(1-a)*30}px;width:${cw}px;height:560px;opacity:${a};border-color:${col};border-width:3px;padding:26px 24px">
    <div style="font-size:38px;font-weight:800">${d.label}</div>
    <div style="font-size:24px;color:${C.mut};margin-top:6px">${d.arch}</div>
    <div style="font-size:22px;color:${C.mut};margin-top:2px">models ${d.models}</div>
-   ${t4?`<div style="font-size:30px;font-weight:800;color:${C.am};margin-top:44px;letter-spacing:.08em">SUITES ONLY</div><div style="font-size:26px;color:${C.mut};margin-top:12px;line-height:1.35">no replay run. The bigger 2B arrays ran out of its 16 GB.</div>`
-   :`<div class="mono" style="font-size:52px;font-weight:800;margin-top:44px">${comma(cnt)}</div><div style="font-size:24px;color:${C.mut}">positions replayed</div>
+   ${`<div class="mono" style="font-size:52px;font-weight:800;margin-top:44px">${comma(cnt)}</div><div style="font-size:24px;color:${C.mut}">positions replayed</div>
    <div style="font-size:24px;color:${C.mut};margin-top:8px">${v(d.arrays)} arrays</div>
    <div class="mono" style="font-size:46px;font-weight:800;color:${C.te};margin-top:26px">0</div><div style="font-size:24px;color:${C.te};font-weight:700">mismatches</div>`}
    <div style="position:absolute;left:24px;right:24px;bottom:26px;border-top:2px solid ${C.line};padding-top:16px"><span class="mono" style="font-size:44px;font-weight:800;color:${col}">${v(d.clean)}/${v(d.total)}</span><span style="font-size:24px;color:${C.mut}"> suite runs clean</span></div></div>`});

@@ -1,16 +1,17 @@
 <!doctype html><html><head><meta charset="utf-8"><title>the hardware wall</title><style>html,body{margin:0;background:#fff}canvas{display:block}</style></head><body><canvas id="c"></canvas>
 <script src="trace.js"></script><script src="light.js"></script><script>
 // Numbers: results/hw.md (positions replayed, mismatches, suites clean). The live check ticker uses the REAL decoded circuit outputs of the traces in trace.js.
-const DEV=[{n:'A100 40GB',a:'Ampere sm80',m:'0.8B · 2B · 4B',pos:705024,arr:9,suite:'18/18',c:C.blue,l:'#eaf0ff'},
- {n:'A10G 24GB',a:'Ampere sm86',m:'0.8B · 2B',pos:221184,arr:8,suite:'12/12',c:C.gr,l:'#e4f6ea'},
- {n:'L4 24GB',a:'Ada sm89',m:'0.8B · 2B',pos:190464,arr:8,suite:'12/12',c:C.or,l:'#fff0dd'},
- {n:'x86 Xeon',a:'Ice Lake CPU (c6i)',m:'0.8B · 2B · 4B',pos:23040,arr:8,suite:'14/14',c:C.pu,l:'#efe6fb'}];
-const TOTAL=1139712,F0=1.8,F1=10.6;
+const DEV=[{n:'A100 40GB',a:'Ampere sm80',m:'0.8B · 2B · 4B',pos:705024,arr:9,suite:'18/18',c:C.blue,l:C.bluel},
+ {n:'A10G 24GB',a:'Ampere sm86',m:'0.8B · 2B · 4B',pos:273024,arr:8,suite:'16/16',c:C.gr,l:C.grl},
+ {n:'L4 24GB',a:'Ada sm89',m:'0.8B · 2B · 4B',pos:211584,arr:8,suite:'16/16',c:C.or,l:C.orl},
+ {n:'T4 16GB',a:'Turing sm75',m:'0.8B · 2B · 4B',pos:148608,arr:6,suite:'9/12',c:C.pk,l:C.pkl},
+ {n:'x86 Xeon',a:'Ice Lake CPU (c6i)',m:'0.8B · 2B · 4B',pos:23040,arr:8,suite:'14/14',c:C.pu,l:C.pul}];
+const TOTAL=1361280,F0=1.8,F1=10.6;
 // real comparisons: circuit OUT vs numpy for every READ of the first three jobs
 const CMP=[];TRACE.jobs.slice(0,3).forEach((j,ji)=>{j.tokens.forEach(t=>{if(t.k==='READ'){const st=j.stages[t.stage];CMP.push({job:['8×8','16×16','chain'][ji],k:t.kk,st:t.stage,out:t.out[0],np:st.numpy[t.kk]})}})});
-const caps=[[.4,2.2,'“Exact on an A100” is a claim about an A100.','so we replayed the same checks on four different machines'],
- [2.4,10.6,'Every token is compared with numpy. We count mismatches.','replayed token positions on an A100, an A10G, an L4 and an x86 Xeon'],
- [10.9,14.4,'1,139,712 positions checked. 0 mismatches.','T4 ran the test suites only (9 of 12 runs; the larger 2B arrays do not fit in 16 GB)']];
+const caps=[[.4,2.2,'“Exact on an A100” is a claim about an A100.','so we replayed the same checks on five different machines'],
+ [2.4,10.6,'Every token is compared with numpy. We count mismatches.','replayed token positions on an A100, an A10G, an L4, a T4 and an x86 Xeon'],
+ [10.9,14.4,'1,361,280 positions checked. 0 mismatches.','The T4 passed 9 of 12 suite runs (the larger 2B arrays do not fit in 16 GB); its replay is exact']];
 register(14.8,u=>{
  header('4','THE HARDWARE WALL',u);
  const a=eo(prog(u,.2,.8)),fr=eio(prog(u,F0,F1)),done=u>=F1;
@@ -21,13 +22,13 @@ register(14.8,u=>{
  const pulse=u>=F0&&!done?1-((u*3)%1):0;
  tx('0',W-60,244,{size:96,weight:800,mono:true,color:C.gr,align:'right'});
  ctx.restore();
- const CW=430,CG=34,CX0=(W-4*CW-3*CG)/2,CY=272,CH=430;
+ const CW=340,CG=24,CX0=(W-5*CW-4*CG)/2,CY=272,CH=430;
  DEV.forEach((d,i)=>{
   const x=CX0+i*(CW+CG),ap=eo(prog(u,.4+i*.12,1.0+i*.12));if(ap<=0)return;const y=CY+(1-ap)*30;
   ctx.save();ctx.globalAlpha=ap;
   rr(x,y,CW,CH,22,'#fff',done?d.c:C.line,done?4:2.5);rr(x,y,CW,10,5,d.c);
   tx(d.n,x+26,y+60,{size:42,weight:800,color:d.c});
-  tx(d.a,x+26,y+98,{size:28,weight:500,color:C.mut});tx('models '+d.m,x+26,y+132,{size:28,weight:500,color:C.mut});
+  tx(d.a,x+26,y+98,{size:28,weight:500,color:C.mut});tx('models '+d.m,x+26,y+132,{size:25,weight:500,color:C.mut});
   tx(comma(d.pos*fr),x+CW-26,y+210,{size:58,weight:800,mono:true,align:'right'});
   tx('positions replayed',x+CW-26,y+248,{size:28,weight:600,color:C.mut,align:'right'});
   const cols=22,rows=3,dw=(CW-52)/cols;
@@ -39,7 +40,7 @@ register(14.8,u=>{
   tx(done?'suites '+d.suite+' clean':'suites running…',x+26,y+434-0,{size:28,weight:700,color:done?d.c:C.mut,alpha:0});
   ctx.restore()});
  // suites line below cards
- DEV.forEach((d,i)=>{const x=CX0+i*(CW+CG);tx(done?'test suites '+d.suite+' clean':'test suites running…',x+CW/2,CY+CH+40,{size:30,weight:800,align:'center',color:done?d.c:C.mut})});
+ DEV.forEach((d,i)=>{const x=CX0+i*(CW+CG);tx(done?'test suites '+d.suite+' clean':'test suites running…',x+CW/2,CY+CH+40,{size:27,weight:800,align:'center',color:done?d.c:C.mut})});
  // live check ticker
  const TY=786;
  tx('live check, circuit vs numpy:',60,TY+4,{size:28,weight:800,color:C.mut,alpha:a});

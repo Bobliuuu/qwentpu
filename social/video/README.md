@@ -13,6 +13,7 @@ The same folder holds four short explainers in the same light style (`matvec.htm
 
 ```
 cd social/anim
+python3 sync_totals.py              # patch the replay total and hardware cards from results/hw.md + outputs.txt, then re-render
 python3 gen_trace.py                 # regenerate trace.json / trace.js (needs numpy)
 node render.js                       # every page -> out/<name>.mp4 (dashboard, matvec, adder, stack, hardware, intro, outro)
 node render.js dashboard             # just the master -> out/dashboard.mp4

@@ -17,7 +17,7 @@ if(scene==='intro'){
  register(7,t=>{
   tx('First a CPU. Then a GPU. Then a filesystem. Then another GPU.',W/2,290,{size:50,align:'center',color:col.mut,weight:700,alpha:fade(t,.2)});
   tx('Now: qwenTPU.',W/2,410,{size:110,align:'center',color:col.pu,weight:800,alpha:fade(t,.9),glow:col.pu,gb:30});
-  const items=[['NO TRAINING',col.pu],['INTEGER-EXACT',col.te],['0 MISMATCHES IN 1,139,712 POSITIONS',col.am]];
+  const items=[['NO TRAINING',col.pu],['INTEGER-EXACT',col.te],['0 MISMATCHES IN 1,361,280 POSITIONS',col.am]];
   let x=0;ctx.save();ctx.font=`700 28px ${SANS}`;ctx.letterSpacing='2px';const ws=items.map(i=>ctx.measureText(i[0]).width+56);ctx.restore();
   const tot=ws.reduce((a,b)=>a+b,0)+2*24;x=(W-tot)/2;
   items.forEach((it,i)=>{pill(it[0],x,500,it[1],{alpha:fade(t,1.8+i*.25)});x+=ws[i]+24});
