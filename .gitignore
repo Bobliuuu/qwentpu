@@ -13,3 +13,13 @@ social/anim/out/chk3/
 social/anim/.v2_ir_cache.json
 *.egg-info/
 ubuntu@*
+
+# --- secrets / infrastructure identifiers: never commit (see skill github-workflow) ---
+*.pem
+*.key
+known_hosts
+.env
+.env.*
+vast_api_key
+sw.sh
+*.local.sh
