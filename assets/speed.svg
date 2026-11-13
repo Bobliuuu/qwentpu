@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 278" width="980" height="278" role="img" aria-label="A100, Qwen3.5-0.8B, 8x8 u3s3: tokens per second, bit-identical outputs">
+<rect width="980" height="278" rx="16" fill="#0b0f17"/>
+<text x="32" y="44" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-weight="700" font-size="22" fill="#e6edf6">A100, Qwen3.5-0.8B, 8x8 u3s3: tokens per second, bit-identical outputs</text>
+<text x="398" y="118" text-anchor="end" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#8a98ad" font-weight="400">whole network, eager</text>
+<rect x="412" y="96" width="8.1" height="30" rx="6" fill="#263044"/>
+<text x="430.1" y="117" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="15" font-weight="700" fill="#e6edf6">6,629</text>
+<text x="398" y="164" text-anchor="end" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#8a98ad" font-weight="400">TPU layers only</text>
+<rect x="412" y="142" width="91.3" height="30" rx="6" fill="#263044"/>
+<text x="513.3" y="163" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="15" font-weight="700" fill="#e6edf6">74,462</text>
+<text x="398" y="210" text-anchor="end" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#e6edf6" font-weight="700">TPU layers + CUDA graph (mean of 3 runs x 2 traces)</text>
+<rect x="412" y="188" width="418.0" height="30" rx="6" fill="#27c8e8"/>
+<text x="840.0" y="209" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="15" font-weight="700" fill="#e6edf6">340,925</text>
+<text x="948" y="264" text-anchor="end" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#8a98ad">source: results/derived/readme_data.json · higher is better</text>
+</svg>

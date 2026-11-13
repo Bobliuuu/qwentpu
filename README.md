@@ -1,16 +1,16 @@
-<p align="center"><img src="docs/banner.svg" alt="qwenTPU: a TPU compiled into the weights of Qwen3.5" width="100%"></p>
+<div align="center">
 
-<h1 align="center">qwenTPU</h1>
-<p align="center"><b>A TPU compiled into the weights of a stock Qwen3.5. No TPU hardware, no training.<br>A language model that does exact matrix multiplication.</b></p>
+<img src="assets/hero.svg" alt="qwenTPU" width="100%">
 
-<p align="center">
-<a href="https://bobliuuu.github.io/qwentpu/"><b>🎮 Watch it run</b></a> ·
-<a href="WRITEUP.md"><b>📖 Write-up</b></a> ·
-<a href="#-what-is-actually-new"><b>🧭 What's new</b></a> ·
-<a href="#-does-it-work-on-your-hardware"><b>🔬 Hardware</b></a> ·
-<a href="#-v2-a-tpu-that-runs-a-program"><b>🧬 v2</b></a> ·
-<a href="#-quickstart"><b>🚀 Quickstart</b></a>
-</p>
+# 🧮 qwenTPU
+
+**A TPU compiled into the weights of a stock Qwen3.5. No TPU hardware, no training. A language model that does exact matrix multiplication.**
+
+![replayed positions: 1,361,280](https://img.shields.io/badge/replayed%20positions-1%2C361%2C280-27c8e8) ![mismatches: 0](https://img.shields.io/badge/mismatches-0-3ddc97) ![machines: 5](https://img.shields.io/badge/machines-5-27c8e8) ![base: Qwen3.5 0.8B / 2B / 4B](https://img.shields.io/badge/base-Qwen3.5%200.8B%20%2F%202B%20%2F%204B-7e57c2) ![TPU layers only: 11x faster](https://img.shields.io/badge/TPU%20layers%20only-11x%20faster-f2c14e) [![license: MIT](https://img.shields.io/badge/license-MIT-f2c14e)](LICENSE)
+
+[🎬 Video](#video) · [📊 At a glance](#results-at-a-glance) · [🧭 What is new](#what-is-actually-new) · [🧠 How it works](#how-it-works) · [⚡ Speed](#speed) · [🔬 Hardware](#does-it-work-on-your-hardware) · [🧬 v2](#v2-a-tpu-that-runs-a-program) · [🚀 Quickstart](#quickstart) · [⚠️ Limits](#limits-honestly)
+
+</div>
 
 ---
 
@@ -21,6 +21,48 @@ up to **64×64 (4,096 MACs per matvec, at 3-bit)**, with operands up to **5 bits
 <p align="center"><a href="docs/qwentpu_demo.mp4"><img src="docs/demo.gif" alt="qwenTPU v1 running a matvec inside Qwen3.5, token by token" width="100%"></a><br><sub>v1 running inside Qwen3.5-0.8B on real tokens. <a href="docs/qwentpu_demo.mp4">Full 70 s video (mp4)</a></sub></p>
 
 <p align="center"><img src="docs/arch.svg" alt="architecture" width="100%"></p>
+
+<a id="results-at-a-glance"></a>
+
+## 📊 Results at a glance
+
+Read from the committed result files under `results/` (replay logs per device, `results/hw.md`, the A100 speed logs).
+
+| Replayed positions | Mismatches | TPU layers only vs whole network | CUDA graph vs eager TPU layers |
+|:---:|:---:|:---:|:---:|
+| **1,361,280** | **0** | **11x** | **4.5x** |
+
+**Exactness across hardware**
+
+| Device | Architecture | Models | Arrays replayed | Positions replayed | Mismatches | Suite runs clean |
+| :--- | :--- | :--- | ---: | ---: | ---: | ---: |
+| A100 40GB | Ampere sm80 | 0.8B, 2B, 4B | 9 | 705,024 | 0 | 18/18 |
+| A10G 24GB | Ampere sm86 | 0.8B, 2B, 4B | 8 | 273,024 | 0 | 16/16 |
+| L4 24GB | Ada sm89 | 0.8B, 2B, 4B | 8 | 211,584 | 0 | 16/16 |
+| T4 16GB | Turing sm75 | 0.8B, 2B, 4B | 6 | 148,608 | 0 | 9/12 |
+| x86 Xeon (c6i, Ice Lake) | x86-64 | 0.8B, 2B, 4B | 8 | 23,040 | 0 | 14/14 |
+
+<sub>Source: `results/derived/readme_data.json`</sub>
+
+**A100, Qwen3.5-0.8B, 8x8 u3s3, batch 1**
+
+| Path | tok/s |
+| :--- | ---: |
+| whole network, eager | 6,629 |
+| TPU layers only | 74,462 |
+| TPU layers + CUDA graph (mean of 3 runs x 2 traces) | 340,925 |
+
+<sub>Source: `results/derived/readme_data.json`</sub>
+
+<p align="center"><img src="assets/device_positions.svg" alt="Token positions replayed against NumPy, by device (all 0 mismatches)" width="100%"></p>
+
+<p align="center"><img src="assets/speed.svg" alt="A100, Qwen3.5-0.8B, 8x8 u3s3: tokens per second, bit-identical outputs" width="100%"></p>
+
+<p align="center"><img src="assets/flow.svg" alt="One matvec inside Qwen3.5" width="100%"></p>
+
+<p align="center"><img src="video/preview.gif" alt="animated overview of the explainer video" width="70%"></p>
+
+<a id="what-is-actually-new"></a>
 
 ## 🧭 What is actually new
 
@@ -43,6 +85,8 @@ Their design vocabulary (DeltaNet rows as RAM, tokens as the trace) is what we b
 
 Not faster than QwenPU per op (it streams 64 lanes per token, we do 4 to 64 MACs per token).
 [TinyTPU](https://github.com/tiny-tpu-v2/tiny-tpu) is the architecture reference only: this repo shares no code with it, and our array is not systolic in space.
+
+<a id="how-it-works"></a>
 
 ## 🧠 How it works
 
@@ -76,6 +120,8 @@ The accumulator returns *counts* of rows with activation bit *a* and weight bit 
 | 32×32, 3-bit | 6 |
 | 64×64, 3-bit | 12 |
 
+<a id="speed"></a>
+
 ## ⚡ Speed
 
 Depth is the price of width, and the biggest wins are in skipping work, not adding it (details and the packing trade-off in the [write-up](WRITEUP.md)):
@@ -90,6 +136,8 @@ Depth is the price of width, and the biggest wins are in skipping work, not addi
 <p align="center"><img src="docs/chip-path.svg" alt="chip-only path" width="100%"></p>
 
 <p align="center"><img src="docs/anim/stack.gif" alt="animation: chip tokens skip the muted Qwen layers" width="100%"></p>
+
+<a id="does-it-work-on-your-hardware"></a>
 
 ## 🔬 Does it work on your hardware?
 
@@ -109,6 +157,8 @@ and cuBLAS split-K adding partials in bf16 on an L4 (traces of 288 and 320 token
 The suite is 10 tests per (model, array) for the runs in the table (an 11th, restore on the full network, was added afterwards and passes on the A100, 0.8B 8×8): exact inside Qwen · exact after text · pure-text KL · text after a chip run · every trace length (up to 320 tokens, the lengths that broke the L4) · mutation test (zero the TPU layers and answers must break) ·
 real 2-layer MLPs · chip-only path bit-identical · CUDA-graph executor bit-identical · restore invisible. Replay compares every predicted token with NumPy (`bench.py`).
 The T4 passes all 0.8B suite runs and the three smallest 2B ones, then runs out of its 16 GB; its replay (0.8B and 2B, all six arrays, 4B on four arrays) is exact, but 4B 32×32 did not fit and has no data, and there is no 4B suite on the T4. On the 24 GB cards the 4B suite was run for four arrays (8×8 u3s3, 8×8 u5s5, 16×16 u3s2, 32×32 u3s3), not all six; 4B replay covers the same four on the A10G and three of them on the L4 (32×32 batch 8 was cut off). The 8×8 u3s3 4B run has 11 tests; the later ones have 12 (the final tests/test_merged.py, with VRAM parking, see below). Raw logs for every machine are in [`results/`](results/).
+
+<a id="v2-a-tpu-that-runs-a-program"></a>
 
 ## 🧬 v2: a TPU that runs a program
 
@@ -201,6 +251,8 @@ Full table: [`results/a100/v2_vec.txt`](results/a100/v2_vec.txt).
 
 Details: `docs/V2_ISA.md` (instruction set, token layout), `docs/V2_SEQUENCER.md` (how the model sequences itself), `examples/mlp/` (the classifier, golden outputs and `run_v2.py`), `WRITEUP.md` section 8.
 
+<a id="quickstart"></a>
+
 ## 🚀 Quickstart
 
 ```bash
@@ -227,6 +279,8 @@ with s.chip():                                         # the TPU, in the same mo
     y = s.matvec(x)                                    # AMAX-bounded activations in, out
 ```
 
+<a id="repo-map"></a>
+
 ## 🧰 Repo map
 
 | path | what |
@@ -241,12 +295,20 @@ with s.chip():                                         # the TPU, in the same mo
 | `docs/site/` | 🎮 interactive walkthrough · `docs/tools/gen_svgs.py` regenerates the diagrams |
 | [`WRITEUP.md`](WRITEUP.md) | the long version |
 
+<a id="limits-honestly"></a>
+
 ## ⚠️ Limits, honestly
 
 - **v1 is host-driven.** The host chooses every chip token and there is no in-datapath nonlinearity. v2 moves the sequencing into the model (see [v1 and v2](#-v2-a-tpu-that-runs-a-program)), but its schedule, array size and chain topology are still compiled into the weights, and the host still builds the prompt and runs the argmax loop.
 - **Teacher-forced numbers are prefill throughput.** The free-running figure is the honest chained number.
 - **The split-K guard is a process-wide torch flag** set by `merge.instantiate`. Load a saved checkpoint with `qwentpu.merge.load_checkpoint(path)`, which sets it and casts the rotary buffers the way the tests do (plain `from_pretrained` does neither).
 
+<a id="credits"></a>
+
 ## 🙏 Credits
 
 Design vocabulary: **Qwenputer** (Divyansh Agrawal), with which this repo shares no code. Architecture reference: **TinyTPU** (Surya Sure et al.), likewise no code. Base models: **Qwen3.5**. MIT licensed.
+
+---
+
+<div align="center"><sub>Generated with video-readme-maker from README.spec.yml and results/.</sub></div>

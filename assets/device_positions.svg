@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 370" width="980" height="370" role="img" aria-label="Token positions replayed against NumPy, by device (all 0 mismatches)">
+<rect width="980" height="370" rx="16" fill="#0b0f17"/>
+<text x="32" y="44" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-weight="700" font-size="22" fill="#e6edf6">Token positions replayed against NumPy, by device (all 0 mismatches)</text>
+<text x="234" y="118" text-anchor="end" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#8a98ad" font-weight="400">A100 40GB</text>
+<rect x="248" y="96" width="582.0" height="30" rx="6" fill="#263044"/>
+<text x="840.0" y="117" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="15" font-weight="700" fill="#e6edf6">705,024</text>
+<text x="234" y="164" text-anchor="end" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#8a98ad" font-weight="400">A10G 24GB</text>
+<rect x="248" y="142" width="225.4" height="30" rx="6" fill="#263044"/>
+<text x="483.4" y="163" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="15" font-weight="700" fill="#e6edf6">273,024</text>
+<text x="234" y="210" text-anchor="end" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#8a98ad" font-weight="400">L4 24GB</text>
+<rect x="248" y="188" width="174.7" height="30" rx="6" fill="#263044"/>
+<text x="432.7" y="209" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="15" font-weight="700" fill="#e6edf6">211,584</text>
+<text x="234" y="256" text-anchor="end" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#8a98ad" font-weight="400">T4 16GB</text>
+<rect x="248" y="234" width="122.7" height="30" rx="6" fill="#263044"/>
+<text x="380.7" y="255" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="15" font-weight="700" fill="#e6edf6">148,608</text>
+<text x="234" y="302" text-anchor="end" font-family="ui-sans-serif,system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="15" fill="#8a98ad" font-weight="400">x86 Xeon (c6i, Ice Lake)</text>
+<rect x="248" y="280" width="19.0" height="30" rx="6" fill="#263044"/>
+<text x="277.0" y="301" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="15" font-weight="700" fill="#e6edf6">23,040</text>
+<text x="948" y="356" text-anchor="end" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#8a98ad">source: results/derived/readme_data.json · higher is better</text>
+</svg>

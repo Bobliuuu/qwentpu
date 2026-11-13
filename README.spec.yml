@@ -1,0 +1,214 @@
+# Spec for ~/video-readme-maker:  python3 ~/video-readme-maker/vrm.py all README.spec.yml
+# Numbers come from results/derived/readme_data.json, built by tools/readme_data.py from results/<device>/*.jsonl, results/hw.md and results/a100/*.jsonl.
+# Long technical sections are verbatim markdown in docs/readme/*.md (body_file).
+project:
+  name: qwenTPU
+  emoji: "🧮"
+  tagline: "A TPU compiled into the weights of a stock Qwen3.5. No TPU hardware, no training. A language model that does exact matrix multiplication."
+  repo: Bobliuuu/qwentpu
+hero:
+  title: qwenTPU
+  subtitle: "a weight-stationary matrix-multiply array inside Qwen3.5, exact against NumPy"
+  chips: [Gated DeltaNet adder tree, up to 64x64, 5-bit operands, 0 mismatches]
+theme: {accent: "#27c8e8", accent2: "#ff6b6b", accent3: "#f2c14e", good: "#3ddc97"}
+readme_out: README.md
+assets_dir: assets
+badges:
+  - {label: "replayed positions", message: "{{ n.positions.text }}", color: 27c8e8}
+  - {label: mismatches, message: "{{ n.mismatches.text }}", color: 3ddc97}
+  - {label: machines, message: "{{ n.machines.text }}", color: 27c8e8}
+  - {label: base, message: "Qwen3.5 0.8B / 2B / 4B", color: 7e57c2}
+  - {label: "TPU layers only", message: "{{ n.speedup_tpu.text }} faster", color: f2c14e}
+  - {label: license, message: MIT, color: f2c14e, link: LICENSE}
+nav:
+  - {emoji: "🎬", label: Video, anchor: video}
+  - {emoji: "📊", label: At a glance, anchor: results-at-a-glance}
+  - {emoji: "🧭", label: What is new, anchor: what-is-actually-new}
+  - {emoji: "🧠", label: How it works, anchor: how-it-works}
+  - {emoji: "⚡", label: Speed, anchor: speed}
+  - {emoji: "🔬", label: Hardware, anchor: does-it-work-on-your-hardware}
+  - {emoji: "🧬", label: v2, anchor: v2-a-tpu-that-runs-a-program}
+  - {emoji: "🚀", label: Quickstart, anchor: quickstart}
+  - {emoji: "⚠️", label: Limits, anchor: limits-honestly}
+
+numbers:
+  positions_raw: {file: results/derived/readme_data.json, path: totals.positions, fmt: "{:,.0f}"}
+  positions: {file: results/derived/readme_data.json, path: totals.positions, fmt: "{:,.0f}"}
+  mismatches: {file: results/derived/readme_data.json, path: totals.mismatches}
+  machines: {file: results/derived/readme_data.json, path: totals.machines}
+  full_tok: {file: results/derived/readme_data.json, path: totals.full, fmt: "{:,.0f}"}
+  tpu_tok: {file: results/derived/readme_data.json, path: totals.tpu, fmt: "{:,.0f}"}
+  graph_tok: {file: results/derived/readme_data.json, path: totals.graph_mean, fmt: "{:,.0f}"}
+  eager_tok: {file: results/derived/readme_data.json, path: totals.eager_tpu_mean, fmt: "{:,.0f}"}
+  speedup_tpu: {file: results/derived/readme_data.json, path: totals.speedup_tpu, fmt: "{:.0f}", unit: "x"}
+  speedup_graph: {file: results/derived/readme_data.json, path: totals.speedup_graph, fmt: "{:.1f}", unit: "x"}
+  chain: {file: results/derived/readme_data.json, path: totals.chain_matvec_s, fmt: "{:.0f}"}
+  v2_ok: {file: results/derived/readme_data.json, path: totals.v2_exact_runs}
+  v2_total: {file: results/derived/readme_data.json, path: totals.v2_total_runs}
+  a100_pos: {file: results/derived/readme_data.json, path: "devices.key=a100.positions", fmt: "{:,.0f}"}
+  a100_suite: {file: results/derived/readme_data.json, path: "devices.key=a100.suite_clean"}
+  a100_suite_total: {file: results/derived/readme_data.json, path: "devices.key=a100.suite_total"}
+  t4_suite: {file: results/derived/readme_data.json, path: "devices.key=t4.suite_clean"}
+  t4_suite_total: {file: results/derived/readme_data.json, path: "devices.key=t4.suite_total"}
+
+intro_file: docs/readme/00-intro.md
+
+video:
+  url: ""
+  caption: "Explainer video (voice-over and subtitles): a TPU inside Qwen3.5, exact on five machines"
+  mp4: video/qwentpu_explainer.mp4
+  gif: video/preview.gif
+  srt: video/qwentpu_explainer.srt
+  poster: video/poster.png
+  out_dir: video/.render
+  fps: 24
+  max_mb: 22
+  render_crf: 20
+  concurrency: 4
+  poster_at: 60
+  music: true
+  voice: {engine: openai, voice: alloy, model: gpt-4o-mini-tts, tempo: 1.2}
+  scenes:
+    - type: title
+      title: qwenTPU
+      subtitle: A TPU inside the weights of Qwen3.5
+      chips: [Gated DeltaNet, exact integers in bf16, no training]
+      say: "qwenTPU. A weight stationary matrix multiply array, compiled into the weights of a stock Qwen three point five. No TPU hardware and no training: a language model that does exact matrix multiplication."
+    - type: problem
+      heading: "What a TPU needs"
+      bullets:
+        - "Memory that holds weights and partial sums"
+        - "An adder that sums selected rows"
+        - "A Gated DeltaNet head already is both"
+      say: "A TPU is mostly memory plus adders. A Gated DeltaNet head, the linear attention layer in Qwen three point five, keeps a state matrix, and one multi hot read returns the exact sum of the rows you select. So the head already is the memory and the adder tree."
+    - type: architecture
+      diagram: flow
+      heading: "How a matvec runs"
+      say: "Weights are written into the state as tokens, once. Then each activation selects rows, the adder tree sums them in one read, and a top down fold with saturating clamps keeps the integers exact in bf sixteen. Chained layers read the model's own sampled tokens. Qwen's original layers are muted for these tokens, so the chip leaves no trace in the language model's context."
+    - type: cards
+      heading: "Four things that are new here"
+      cards:
+        - {title: "Dataflow array", sub: "not a CPU", lines: ["No program counter", "The layer stack is the datapath"]}
+        - {title: "One read = reduction", sub: "DeltaNet head", lines: ["The head returns the exact row sum", "The adder tree costs one read"]}
+        - {title: "Exact integers", sub: "bf16, up to 5 bits", lines: ["Bit-plane counting", "Lossless top-down fold"]}
+        - {title: "Zero trace", sub: "muted Qwen layers", lines: ["Chip tokens skip them", "Context stays bit-identical"]}
+      footer: "Others compile a CPU into Qwen; this is an accelerator's structure"
+      say: "Four things are new. A dataflow array rather than a CPU, with no program counter. One multi hot read as a whole reduction. Exact integers up to five bits in bf sixteen. And zero trace, because Qwen's own layers are muted for chip tokens."
+    - type: stat
+      number: positions_raw
+      kicker: "token positions replayed against NumPy"
+      label: "mismatches: {{ n.mismatches.text }}"
+      sub: "five machines: A100, A10G, L4, T4 and an x86 Xeon; Qwen3.5 0.8B, 2B and 4B"
+      say: "The headline: {{ n.positions.numtext }} replayed token positions across {{ n.machines.numtext }} different machines, and {{ n.mismatches.numtext }} mismatches against NumPy."
+    - type: chart
+      chart: device_positions
+      say: "Replay volume per device. The same suite ran on an A100, an A10G, an L4, a T4 and an x86 Xeon CPU. Running on different hardware matters: it caught a bf sixteen rounding issue and a split K problem that a float sixty four simulation could never show."
+    - type: chart
+      chart: speed
+      say: "On an A100 with the zero point eight B model, running the whole network gives {{ n.full_tok.numtext }} tokens per second. Skipping Qwen's muted layers gives {{ n.tpu_tok.numtext }}, which is {{ n.speedup_tpu.numtext }}, and one CUDA graph per trace reaches about {{ n.graph_tok.numtext }}. Free running chained matvecs reach {{ n.chain.numtext }} per second."
+    - type: results
+      heading: "v2: the program lives in the prompt"
+      items:
+        - {label: "v2 programs exact", number: v2_ok}
+        - {label: "v2 programs run", number: v2_total}
+        - {label: "A100 suite runs clean", number: a100_suite}
+      say: "Version two adds a tiny instruction set, an exact relu and a sequencer, so the model emits every token itself and the prompt chooses the network. In the v two bench, all {{ n.v2_ok.numtext }} of {{ n.v2_total.numtext }} programs were exact."
+    - type: caveats
+      heading: "Honest limits"
+      bullets:
+        - "Not faster than QwenPU per op: 4 to 64 MACs per token"
+        - "v1 is host-driven; v2 still fixes schedule, array size and topology at compile time"
+        - "T4 suite: {{ n.t4_suite.text }} of {{ n.t4_suite_total.text }} runs clean (16 GB memory limit)"
+        - "Teacher-forced numbers are prefill throughput"
+      say: "Honest limits. It is not faster than QwenPU per operation, since it does four to sixty four MACs per token. Version one is host driven. On the sixteen gigabyte T4 only {{ n.t4_suite.numtext }} of {{ n.t4_suite_total.numtext }} suite runs fit in memory, though the replay is exact. And teacher forced numbers are prefill throughput, not free running."
+    - type: end
+      title: qwenTPU
+      subtitle: "Code, write-up and logs are in the repo"
+      say: "The code, the write-up, and every log are in the repo."
+
+charts:
+  - id: device_positions
+    type: bar
+    title: "Token positions replayed against NumPy, by device (all 0 mismatches)"
+    better: higher
+    file: results/derived/readme_data.json
+    rows_path: devices
+    label: device
+    y: positions
+    fmt: "{:,.0f}"
+  - id: speed
+    type: bar
+    title: "A100, Qwen3.5-0.8B, 8x8 u3s3: tokens per second, bit-identical outputs"
+    better: higher
+    file: results/derived/readme_data.json
+    rows_path: speed
+    label: path
+    y: tok_s
+    fmt: "{:,.0f}"
+    highlight: "TPU layers + CUDA graph (mean of 3 runs x 2 traces)"
+
+tables:
+  - id: dev_tbl
+    title: "Exactness across hardware"
+    file: results/derived/readme_data.json
+    rows_path: devices
+    columns:
+      - {key: device, title: Device}
+      - {key: arch, title: Architecture}
+      - {key: models, title: Models}
+      - {key: arrays, title: "Arrays replayed", align: right}
+      - {key: positions, title: "Positions replayed", align: right, fmt: "{:,.0f}"}
+      - {key: mismatches, title: Mismatches, align: right}
+      - {key: suite, title: "Suite runs clean", align: right}
+  - id: speed_tbl
+    title: "A100, Qwen3.5-0.8B, 8x8 u3s3, batch 1"
+    file: results/derived/readme_data.json
+    rows_path: speed
+    columns:
+      - {key: path, title: Path}
+      - {key: tok_s, title: "tok/s", align: right, fmt: "{:,.0f}"}
+
+diagrams:
+  - id: flow
+    title: "One matvec inside Qwen3.5"
+    nodes:
+      - {id: w, label: "Weights as tokens", sub: "written into DeltaNet state once", col: 0, row: 0, kind: io}
+      - {id: s, label: "Gated DeltaNet state S", sub: "weights and partial sums", col: 1, row: 0, kind: store}
+      - {id: a, label: "Activation tokens", sub: "multi-hot row select", col: 2, row: 0, kind: io}
+      - {id: add, label: "Adder tree", sub: "one read = exact row sum", col: 3, row: 0, kind: accent}
+      - {id: f, label: "Top-down fold", sub: "saturating clamps, lossless", col: 3, row: 1}
+      - {id: o, label: "Output tokens", sub: "sampled; next layer reads them", col: 2, row: 1, kind: io}
+      - {id: m, label: "Muted Qwen layers", sub: "skipped: zero trace", col: 1, row: 1}
+    edges:
+      - {from: w, to: s}
+      - {from: a, to: s, label: select}
+      - {from: s, to: add}
+      - {from: add, to: f}
+      - {from: f, to: o}
+      - {from: o, to: m}
+
+sections:
+  - title: Results at a glance
+    emoji: "📊"
+    id: results-at-a-glance
+    body: "Read from the committed result files under `results/` (replay logs per device, `results/hw.md`, the A100 speed logs)."
+    highlights:
+      - {label: "Replayed positions", number: positions}
+      - {label: "Mismatches", number: mismatches}
+      - {label: "TPU layers only vs whole network", number: speedup_tpu}
+      - {label: "CUDA graph vs eager TPU layers", number: speedup_graph}
+    diagrams: [flow]
+    charts: [device_positions, speed]
+    images:
+      - {src: video/preview.gif, alt: "animated overview of the explainer video", width: "70%"}
+    tables: [dev_tbl, speed_tbl]
+  - {title: "What is actually new", emoji: "🧭", body_file: docs/readme/01-what-is-actually-new.md}
+  - {title: "How it works", emoji: "🧠", body_file: docs/readme/02-how-it-works.md}
+  - {title: "Speed", emoji: "⚡", body_file: docs/readme/03-speed.md}
+  - {title: "Does it work on your hardware?", emoji: "🔬", body_file: docs/readme/04-does-it-work-on-your-hardware.md}
+  - {title: "v2: a TPU that runs a program", emoji: "🧬", body_file: docs/readme/05-v2-a-tpu-that-runs-a-program.md}
+  - {title: "Quickstart", emoji: "🚀", body_file: docs/readme/06-quickstart.md}
+  - {title: "Repo map", emoji: "🧰", body_file: docs/readme/07-repo-map.md}
+  - {title: "Limits, honestly", emoji: "⚠️", body_file: docs/readme/08-limits-honestly.md}
+  - {title: "Credits", emoji: "🙏", body_file: docs/readme/09-credits.md}
+footer: "Generated with video-readme-maker from README.spec.yml and results/."

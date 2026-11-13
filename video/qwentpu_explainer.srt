@@ -1,0 +1,156 @@
+1
+00:00:00,400 --> 00:00:00,980
+qwenTPU.
+
+2
+00:00:00,980 --> 00:00:07,501
+A weight stationary matrix multiply array, compiled into the weights of a stock Qwen three
+
+3
+00:00:07,501 --> 00:00:08,298
+point five.
+
+4
+00:00:08,298 --> 00:00:14,675
+No TPU hardware and no training: a language model that does exact matrix multiplication.
+
+5
+00:00:15,670 --> 00:00:17,795
+A TPU is mostly memory plus adders.
+
+6
+00:00:17,795 --> 00:00:23,199
+A Gated DeltaNet head, the linear attention layer in Qwen three point five, keeps a state
+
+7
+00:00:23,199 --> 00:00:27,813
+matrix, and one multi hot read returns the exact sum of the rows you select.
+
+8
+00:00:27,813 --> 00:00:31,031
+So the head already is the memory and the adder tree.
+
+9
+00:00:32,030 --> 00:00:34,853
+Weights are written into the state as tokens, once.
+
+10
+00:00:34,853 --> 00:00:39,946
+Then each activation selects rows, the adder tree sums them in one read, and a top down fold
+
+11
+00:00:39,946 --> 00:00:43,378
+with saturating clamps keeps the integers exact in bf sixteen.
+
+12
+00:00:43,378 --> 00:00:46,201
+Chained layers read the model's own sampled tokens.
+
+13
+00:00:46,201 --> 00:00:51,405
+Qwen's original layers are muted for these tokens, so the chip leaves no trace in the language
+
+14
+00:00:51,405 --> 00:00:52,291
+model's context.
+
+15
+00:00:53,290 --> 00:00:54,632
+Four things are new.
+
+16
+00:00:54,632 --> 00:00:58,656
+A dataflow array rather than a CPU, with no program counter.
+
+17
+00:00:58,656 --> 00:01:01,339
+One multi hot read as a whole reduction.
+
+18
+00:01:01,339 --> 00:01:04,358
+Exact integers up to five bits in bf sixteen.
+
+19
+00:01:04,358 --> 00:01:08,919
+And zero trace, because Qwen's own layers are muted for chip tokens.
+
+20
+00:01:09,920 --> 00:01:17,729
+The headline: 1,361,280 replayed token positions across 5 different machines, and 0 mismatches
+
+21
+00:01:17,729 --> 00:01:18,892
+against NumPy.
+
+22
+00:01:19,890 --> 00:01:21,771
+Replay volume per device.
+
+23
+00:01:21,771 --> 00:01:27,188
+The same suite ran on an A100, an A10G, an L4, a T4 and an x86 Xeon CPU.
+
+24
+00:01:27,188 --> 00:01:33,960
+Running on different hardware matters: it caught a bf sixteen rounding issue and a split K
+
+25
+00:01:33,960 --> 00:01:38,474
+problem that a float sixty four simulation could never show.
+
+26
+00:01:39,470 --> 00:01:47,875
+On an A100 with the zero point eight B model, running the whole network gives 6,629 tokens per
+
+27
+00:01:47,875 --> 00:01:48,501
+second.
+
+28
+00:01:48,501 --> 00:01:56,728
+Skipping Qwen's muted layers gives 74,462, which is 11, and one CUDA graph per trace reaches
+
+29
+00:01:56,728 --> 00:01:57,980
+about 340,925.
+
+30
+00:01:57,980 --> 00:02:02,451
+Free running chained matvecs reach 705 per second.
+
+31
+00:02:03,450 --> 00:02:09,423
+Version two adds a tiny instruction set, an exact relu and a sequencer, so the model emits
+
+32
+00:02:09,423 --> 00:02:13,007
+every token itself and the prompt chooses the network.
+
+33
+00:02:13,007 --> 00:02:16,657
+In the v two bench, all 196 of 196 programs were exact.
+
+34
+00:02:17,660 --> 00:02:18,429
+Honest limits.
+
+35
+00:02:18,429 --> 00:02:23,484
+It is not faster than QwenPU per operation, since it does four to sixty four MACs per token.
+
+36
+00:02:23,484 --> 00:02:24,968
+Version one is host driven.
+
+37
+00:02:24,968 --> 00:02:30,078
+On the sixteen gigabyte T4 only 9 of 12 suite runs fit in memory, though the replay is exact.
+
+38
+00:02:30,078 --> 00:02:33,815
+And teacher forced numbers are prefill throughput, not free running.
+
+39
+00:02:34,810 --> 00:02:38,599
+The code, the write-up, and every log are in the repo.
+

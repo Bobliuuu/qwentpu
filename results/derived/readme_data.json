@@ -1,0 +1,92 @@
+{
+ "devices": [
+  {
+   "key": "a100",
+   "device": "A100 40GB",
+   "arch": "Ampere sm80",
+   "models": "0.8B, 2B, 4B",
+   "arrays": 9,
+   "positions": 705024,
+   "mismatches": 0,
+   "suite_clean": 18,
+   "suite_total": 18,
+   "suite": "18/18"
+  },
+  {
+   "key": "a10g",
+   "device": "A10G 24GB",
+   "arch": "Ampere sm86",
+   "models": "0.8B, 2B, 4B",
+   "arrays": 8,
+   "positions": 273024,
+   "mismatches": 0,
+   "suite_clean": 16,
+   "suite_total": 16,
+   "suite": "16/16"
+  },
+  {
+   "key": "l4",
+   "device": "L4 24GB",
+   "arch": "Ada sm89",
+   "models": "0.8B, 2B, 4B",
+   "arrays": 8,
+   "positions": 211584,
+   "mismatches": 0,
+   "suite_clean": 16,
+   "suite_total": 16,
+   "suite": "16/16"
+  },
+  {
+   "key": "t4",
+   "device": "T4 16GB",
+   "arch": "Turing sm75",
+   "models": "0.8B, 2B, 4B",
+   "arrays": 6,
+   "positions": 148608,
+   "mismatches": 0,
+   "suite_clean": 9,
+   "suite_total": 12,
+   "suite": "9/12"
+  },
+  {
+   "key": "x86",
+   "device": "x86 Xeon (c6i, Ice Lake)",
+   "arch": "x86-64",
+   "models": "0.8B, 2B, 4B",
+   "arrays": 8,
+   "positions": 23040,
+   "mismatches": 0,
+   "suite_clean": 14,
+   "suite_total": 14,
+   "suite": "14/14"
+  }
+ ],
+ "speed": [
+  {
+   "path": "whole network, eager",
+   "tok_s": 6629
+  },
+  {
+   "path": "TPU layers only",
+   "tok_s": 74462
+  },
+  {
+   "path": "TPU layers + CUDA graph (mean of 3 runs x 2 traces)",
+   "tok_s": 340925
+  }
+ ],
+ "totals": {
+  "positions": 1361280,
+  "mismatches": 0,
+  "machines": 5,
+  "eager_tpu_mean": 75207,
+  "graph_mean": 340925,
+  "full": 6629,
+  "tpu": 74462,
+  "speedup_tpu": 11.2,
+  "speedup_graph": 4.5,
+  "chain_matvec_s": 704.89,
+  "v2_exact_runs": 196,
+  "v2_total_runs": 196
+ }
+}
