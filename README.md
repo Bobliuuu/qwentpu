@@ -6,13 +6,17 @@
 
 **A TPU compiled into the weights of a stock Qwen3.5. No TPU hardware, no training. A language model that does exact matrix multiplication.**
 
-![replayed positions: 1,361,280](https://img.shields.io/badge/replayed%20positions-1%2C361%2C280-27c8e8) ![mismatches: 0](https://img.shields.io/badge/mismatches-0-3ddc97) ![machines: 5](https://img.shields.io/badge/machines-5-27c8e8) ![base: Qwen3.5 0.8B / 2B / 4B](https://img.shields.io/badge/base-Qwen3.5%200.8B%20%2F%202B%20%2F%204B-7e57c2) ![TPU layers only: 11x faster](https://img.shields.io/badge/TPU%20layers%20only-11x%20faster-f2c14e) [![license: MIT](https://img.shields.io/badge/license-MIT-f2c14e)](LICENSE)
+![replayed positions: 1,361,280](https://img.shields.io/badge/replayed%20positions-1%2C361%2C280-27c8e8) ![mismatches: 0](https://img.shields.io/badge/mismatches-0-3ddc97) ![machines: 5](https://img.shields.io/badge/machines-5-27c8e8) ![base: Qwen3.5 0.8B / 2B / 4B](https://img.shields.io/badge/base-Qwen3.5%200.8B%20%2F%202B%20%2F%204B-7e57c2) ![TPU layers only: 11x faster](https://img.shields.io/badge/TPU%20layers%20only-11x%20faster-f2c14e) [![license: MIT](https://img.shields.io/badge/license-MIT-f2c14e)](LICENSE) [![release: v1.1.0](https://img.shields.io/badge/release-v1.1.0-27c8e8?logo=github&logoColor=white)](https://github.com/Bobliuuu/qwentpu/releases/tag/v1.1.0) [![Hugging Face: replay logs](https://img.shields.io/badge/Hugging%20Face-replay%20logs-ffd21e?logo=huggingface&logoColor=white)](https://huggingface.co/datasets/Bobliu/qwentpu)
 
 [🎬 Video](#video) · [📊 At a glance](#results-at-a-glance) · [🧭 What is new](#what-is-actually-new) · [🧠 How it works](#how-it-works) · [⚡ Speed](#speed) · [🔬 Hardware](#does-it-work-on-your-hardware) · [🧬 v2](#v2-a-tpu-that-runs-a-program) · [🚀 Quickstart](#quickstart) · [⚠️ Limits](#limits-honestly)
 
 </div>
 
 ---
+
+**Explainer video (voice-over and subtitles): a TPU inside Qwen3.5, exact on five machines**
+
+[![Explainer video preview (click for the mp4)](video/preview.gif)](video/qwentpu_explainer.mp4)
 
 We took a stock **Qwen3.5** (0.8B, 2B or 4B), compiled a few new layers into it, and it now contains a **weight-stationary matrix-multiply array**,
 up to **64×64 (4,096 MACs per matvec, at 3-bit)**, with operands up to **5 bits** (16×16 u5s5). Every new weight is computed; Qwen's own weights are untouched. Output is integer-exact against NumPy
